@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Transparent background to show ShaderGradient */
+/* Dark background as fallback while ShaderGradient loads */
 html,
 body {
-  background-color: transparent !important;
+  background-color: #0a0a0a !important;
 }
 
 @custom-variant dark (&:is(.dark *));
