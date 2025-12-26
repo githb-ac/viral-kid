@@ -28,31 +28,32 @@ export function ShaderBackground() {
       fov={45}
     >
       <ShaderGradientComponent
-        type="plane"
+        type="sphere"
         animate="on"
-        uAmplitude={1}
-        uDensity={1.3}
-        uSpeed={0.4}
-        uStrength={4}
+        uAmplitude={3.2}
+        uDensity={0.8}
+        uSpeed={0.3}
+        uStrength={0.3}
         uFrequency={5.5}
         uTime={0}
-        cAzimuthAngle={180}
-        cDistance={3.6}
-        cPolarAngle={90}
-        positionX={-1.4}
+        cAzimuthAngle={270}
+        cDistance={0.5}
+        cPolarAngle={180}
+        cameraZoom={15.1}
+        positionX={-0.1}
         positionY={0}
         positionZ={0}
         rotationX={0}
-        rotationY={10}
-        rotationZ={50}
-        color1="#ff5005"
-        color2="#dbba95"
-        color3="#d0bce1"
-        brightness={1.2}
-        reflection={0.1}
+        rotationY={130}
+        rotationZ={70}
+        color1="#73bfc4"
+        color2="#ff810a"
+        color3="#8da0ce"
+        brightness={0.8}
+        reflection={0.4}
         wireframe={false}
         grain="on"
-        lightType="3d"
+        lightType="env"
         envPreset="city"
       />
     </ShaderGradientCanvas>
