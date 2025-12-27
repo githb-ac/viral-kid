@@ -1,20 +1,34 @@
 # viral-kid
 
-A Next.js application integrating Twitter and YouTube APIs for analyzing and tracking viral content, with PostgreSQL storage via Prisma.
+A Next.js application for tracking viral content across social platforms (Twitter, YouTube, Reddit, Instagram) with automated reply pipelines and PostgreSQL storage.
 
 ## Project Structure
 
 ```
 src/
-├── app/           # Next.js App Router (pages, layouts, API routes)
-│   └── api/cron/  # Vercel cron job endpoints
-├── lib/           # Utilities (db, env, twitter, youtube clients)
-│   └── jobs/      # BullMQ job queues and workers
-└── generated/     # Auto-generated Prisma client (do not edit)
+├── app/                    # Next.js App Router
+│   ├── api/                # API routes
+│   │   ├── auth/           # NextAuth.js authentication
+│   │   ├── cron/           # Vercel cron job endpoints
+│   │   ├── twitter/        # Twitter OAuth & operations
+│   │   ├── youtube/        # YouTube OAuth & operations
+│   │   ├── reddit/         # Reddit OAuth & operations
+│   │   ├── instagram/      # Instagram OAuth & operations
+│   │   ├── openrouter/     # AI model integration
+│   │   └── accounts/       # Account management
+│   ├── login/              # Login page
+│   └── page.tsx            # Main dashboard
+├── components/             # React components
+│   └── ui/                 # Reusable UI elements
+├── lib/                    # Utilities and helpers
+│   ├── jobs/               # BullMQ job queue system
+│   ├── twitter/            # Twitter API client
+│   └── youtube/            # YouTube API client
+├── types/                  # TypeScript type definitions
+└── generated/              # Auto-generated Prisma client (do not edit)
 
-prisma/            # Database schema and migrations
-public/            # Static assets
-.claude/commands/  # Claude Code slash commands
+prisma/                     # Database schema and migrations
+.claude/commands/           # Claude Code slash commands
 ```
 
 ## Organization Rules
@@ -64,14 +78,12 @@ npm run db:studio    # Open Prisma Studio
 Required in `.env`:
 
 - `DATABASE_URL` - PostgreSQL connection string
-- `AUTH_SECRET` - Secret for NextAuth.js session encryption (generate with `openssl rand -base64 32`)
-- `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`, `TWITTER_BEARER_TOKEN`
-- `YOUTUBE_API_KEY`
+- `AUTH_SECRET` - NextAuth.js session encryption (generate with `openssl rand -base64 32`)
 
-Optional (for scheduled jobs):
+Optional (platform-specific credentials stored per-account in database):
 
 - `REDIS_URL` - Redis connection string (default: `redis://localhost:6379`)
-- `CRON_SECRET` - Secret for Vercel cron authentication
+- `CRON_SECRET` - Vercel cron authentication
 
 ## Dev Server
 
