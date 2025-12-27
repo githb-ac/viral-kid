@@ -65,10 +65,13 @@ model Account {
   youtubeConfig         YouTubeConfiguration?
   instagramCredentials  InstagramCredentials?
   instagramConfig       InstagramConfiguration?
+  redditCredentials     RedditCredentials?
+  redditConfig          RedditConfiguration?
   openRouterCredentials OpenRouterCredentials?
   logs                  Log[]
   tweetInteractions     TweetInteraction[]
   youtubeCommentInteractions YouTubeCommentInteraction[]
+  redditInteractions    RedditInteraction[]
 
   @@index([platform])
   @@index([order])
@@ -285,4 +288,68 @@ model YouTubeCommentInteraction {
   @@index([createdAt])
   @@index([accountId, createdAt])
   @@index([videoId])
+}
+
+// Reddit configuration - per account settings
+model RedditConfiguration {
+  id                String   @id @default(cuid())
+  enabled           Boolean  @default(false) // Whether automation is active
+  schedule          String   @default("every_hour") // every_5_min, every_10_min, every_30_min, every_hour, every_3_hours, every_6_hours
+  subreddit         String   @default("") // Which subreddit to monitor (without r/ prefix)
+  minimumUpvotes    Int      @default(10) // Minimum upvotes filter for posts
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relation to Account
+  accountId  String   @unique
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// Reddit credentials - OAuth and user info
+model RedditCredentials {
+  id          String   @id @default(cuid())
+  // Reddit App credentials (from Reddit Developer Portal)
+  clientId    String   @default("")
+  clientSecret String  @default("")
+  // User OAuth tokens (obtained after user login)
+  accessToken       String?
+  refreshToken      String?
+  tokenExpiresAt    DateTime?
+  // Connected Reddit user info
+  redditUserId      String?  // Reddit's unique user ID (t2_xxxxx)
+  username          String?  // Reddit username
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relation to Account
+  accountId   String   @unique
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// Reddit post interactions - tracks posts and our comments
+model RedditInteraction {
+  id            String   @id @default(cuid())
+  postId        String   // Reddit post ID (t3_xxxxx format)
+  subreddit     String   // Subreddit name (without r/)
+  postTitle     String   // Title of the post
+  postAuthor    String   // Username of the post author
+  postUrl       String   @default("") // URL to the post
+  upvotes       Int      @default(0)
+  commentCount  Int      @default(0)
+  ourComment    String?  // Our response comment content
+  ourCommentId  String?  // Our comment ID
+  repliedAt     DateTime? // When we replied
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relation to Account
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, postId])
+  @@index([accountId])
+  @@index([createdAt])
+  @@index([accountId, createdAt])
+  @@index([subreddit])
 }

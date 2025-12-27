@@ -27,6 +27,21 @@ import { SettingsModal } from "./settings-modal";
 import { AccountModal } from "./account-modal";
 import { YouTubeAccountModal } from "./youtube-account-modal";
 import { InstagramAccountModal } from "./instagram-account-modal";
+import { RedditAccountModal } from "./reddit-account-modal";
+
+// Custom Reddit icon since lucide-react doesn't have one
+function RedditIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
+    </svg>
+  );
+}
 import { ConfirmModal } from "./confirm-modal";
 import { LogsModal } from "./logs-modal";
 import { DatabaseModal } from "./database-modal";
@@ -42,7 +57,7 @@ interface SetupStatus {
 
 interface Account {
   id: string;
-  platform: "twitter" | "youtube" | "instagram";
+  platform: "twitter" | "youtube" | "instagram" | "reddit";
   name: string;
   displayName: string;
   isConnected: boolean;
@@ -66,7 +81,7 @@ interface PlatformCardProps {
 }
 
 interface AddAccountCardProps {
-  platform: "twitter" | "youtube" | "instagram";
+  platform: "twitter" | "youtube" | "instagram" | "reddit";
   onClick: () => void;
 }
 
@@ -138,8 +153,10 @@ function PlatformCard({
       <Twitter className="h-12 w-12" />
     ) : account.platform === "youtube" ? (
       <Youtube className="h-12 w-12" />
-    ) : (
+    ) : account.platform === "instagram" ? (
       <Instagram className="h-12 w-12" />
+    ) : (
+      <RedditIcon className="h-12 w-12" />
     );
 
   const iconColor =
@@ -147,7 +164,9 @@ function PlatformCard({
       ? "text-sky-400"
       : account.platform === "youtube"
         ? "text-red-500"
-        : "text-pink-500";
+        : account.platform === "instagram"
+          ? "text-pink-500"
+          : "text-orange-500";
 
   const label = account.displayName || account.platform;
 
@@ -160,7 +179,9 @@ function PlatformCard({
             ? "Twitter"
             : account.platform === "youtube"
               ? "YouTube"
-              : "Instagram",
+              : account.platform === "instagram"
+                ? "Instagram"
+                : "Reddit",
         done: account.setup.oauth,
       },
     ];
@@ -376,8 +397,10 @@ function AddAccountCard({ platform, onClick }: AddAccountCardProps) {
       <Twitter className="h-8 w-8" />
     ) : platform === "youtube" ? (
       <Youtube className="h-8 w-8" />
-    ) : (
+    ) : platform === "instagram" ? (
       <Instagram className="h-8 w-8" />
+    ) : (
+      <RedditIcon className="h-8 w-8" />
     );
 
   const iconColor =
@@ -385,13 +408,17 @@ function AddAccountCard({ platform, onClick }: AddAccountCardProps) {
       ? "text-sky-400/50"
       : platform === "youtube"
         ? "text-red-500/50"
-        : "text-pink-500/50";
+        : platform === "instagram"
+          ? "text-pink-500/50"
+          : "text-orange-500/50";
   const iconColorHover =
     platform === "twitter"
       ? "text-sky-400"
       : platform === "youtube"
         ? "text-red-500"
-        : "text-pink-500";
+        : platform === "instagram"
+          ? "text-pink-500"
+          : "text-orange-500";
 
   const [isHovered, setIsHovered] = useState(false);
 
@@ -445,7 +472,9 @@ function AddAccountCard({ platform, onClick }: AddAccountCardProps) {
           ? "Twitter"
           : platform === "youtube"
             ? "YouTube"
-            : "Instagram"}
+            : platform === "instagram"
+              ? "Instagram"
+              : "Reddit"}
       </motion.span>
     </motion.button>
   );
@@ -566,31 +595,31 @@ export function CardGrid() {
 
   const [settingsModal, setSettingsModal] = useState<{
     isOpen: boolean;
-    platform: "twitter" | "youtube" | "instagram";
+    platform: "twitter" | "youtube" | "instagram" | "reddit";
     accountId: string;
   }>({ isOpen: false, platform: "twitter", accountId: "" });
 
   const [accountModal, setAccountModal] = useState<{
     isOpen: boolean;
-    platform: "twitter" | "youtube" | "instagram";
+    platform: "twitter" | "youtube" | "instagram" | "reddit";
     accountId: string;
   }>({ isOpen: false, platform: "twitter", accountId: "" });
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     accountId: string;
-    platform: "twitter" | "youtube" | "instagram";
+    platform: "twitter" | "youtube" | "instagram" | "reddit";
   }>({ isOpen: false, accountId: "", platform: "twitter" });
 
   const [logsModal, setLogsModal] = useState<{
     isOpen: boolean;
-    platform: "twitter" | "youtube" | "instagram";
+    platform: "twitter" | "youtube" | "instagram" | "reddit";
     accountId: string;
   }>({ isOpen: false, platform: "twitter", accountId: "" });
 
   const [databaseModal, setDatabaseModal] = useState<{
     isOpen: boolean;
-    platform: "twitter" | "youtube" | "instagram";
+    platform: "twitter" | "youtube" | "instagram" | "reddit";
     accountId: string;
   }>({ isOpen: false, platform: "twitter", accountId: "" });
 
@@ -600,25 +629,25 @@ export function CardGrid() {
       if (!res.ok) throw new Error("Failed to fetch accounts");
       const data = await res.json();
 
-      // If no accounts exist, create default Twitter, YouTube, and Instagram accounts
-      if (data.length === 0) {
-        await Promise.all([
-          fetch("/api/accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ platform: "twitter" }),
-          }),
-          fetch("/api/accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ platform: "youtube" }),
-          }),
-          fetch("/api/accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ platform: "instagram" }),
-          }),
-        ]);
+      // Check which platforms are missing and create default accounts for them
+      const platforms = ["twitter", "youtube", "instagram", "reddit"] as const;
+      const existingPlatforms = new Set(
+        data.map((account: Account) => account.platform)
+      );
+      const missingPlatforms = platforms.filter(
+        (p) => !existingPlatforms.has(p)
+      );
+
+      if (missingPlatforms.length > 0) {
+        await Promise.all(
+          missingPlatforms.map((platform) =>
+            fetch("/api/accounts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ platform }),
+            })
+          )
+        );
         // Refetch after creating defaults
         const refetchRes = await fetch("/api/accounts");
         const refetchData = await refetchRes.json();
@@ -638,7 +667,7 @@ export function CardGrid() {
   }, [fetchAccounts]);
 
   const handleCreateAccount = async (
-    platform: "twitter" | "youtube" | "instagram"
+    platform: "twitter" | "youtube" | "instagram" | "reddit"
   ) => {
     try {
       const res = await fetch("/api/accounts", {
@@ -750,7 +779,9 @@ export function CardGrid() {
           ? "/api/twitter/run"
           : account.platform === "youtube"
             ? "/api/youtube/run"
-            : "/api/instagram/run";
+            : account.platform === "instagram"
+              ? "/api/instagram/run"
+              : "/api/reddit/run";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -770,7 +801,9 @@ export function CardGrid() {
             ? `Replied to tweet by @${data.repliedTo}`
             : account.platform === "youtube"
               ? `Replied to comment by ${data.repliedTo}`
-              : `Replied to ${data.repliedTo}`;
+              : account.platform === "instagram"
+                ? `Replied to ${data.repliedTo}`
+                : `Replied to u/${data.repliedTo}`;
         toast.success(platformMessage);
       } else if (data.message) {
         toast(data.message, { icon: "ℹ️" });
@@ -801,7 +834,9 @@ export function CardGrid() {
           ? "/api/twitter/toggle"
           : account.platform === "youtube"
             ? "/api/youtube/toggle"
-            : "/api/instagram/toggle";
+            : account.platform === "instagram"
+              ? "/api/instagram/toggle"
+              : "/api/reddit/toggle";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -839,11 +874,13 @@ export function CardGrid() {
   const twitterAccounts = accounts.filter((a) => a.platform === "twitter");
   const youtubeAccounts = accounts.filter((a) => a.platform === "youtube");
   const instagramAccounts = accounts.filter((a) => a.platform === "instagram");
+  const redditAccounts = accounts.filter((a) => a.platform === "reddit");
 
   // Find the first account of each platform (these cannot be deleted)
   const firstTwitterId = twitterAccounts[0]?.id;
   const firstYoutubeId = youtubeAccounts[0]?.id;
   const firstInstagramId = instagramAccounts[0]?.id;
+  const firstRedditId = redditAccounts[0]?.id;
 
   return (
     <>
@@ -932,6 +969,33 @@ export function CardGrid() {
               onClick={() => handleCreateAccount("instagram")}
             />
           </div>
+
+          {/* Reddit Column */}
+          <div className="flex flex-col gap-4">
+            <AnimatePresence mode="popLayout">
+              {!isLoading &&
+                redditAccounts.map((account) => (
+                  <PlatformCard
+                    key={account.id}
+                    account={account}
+                    onSettingsClick={() => openSettings(account)}
+                    onAccountClick={() => openAccount(account)}
+                    onLogsClick={() => openLogs(account)}
+                    onDatabaseClick={() => openDatabase(account)}
+                    onDeleteClick={() => openDeleteModal(account)}
+                    onToggleAutomation={() => handleToggleAutomation(account)}
+                    onTestPipeline={() => handleRunPipeline(account)}
+                    canDelete={account.id !== firstRedditId}
+                    isRunning={runningAccounts.has(account.id)}
+                    isToggling={togglingAccounts.has(account.id)}
+                  />
+                ))}
+            </AnimatePresence>
+            <AddAccountCard
+              platform="reddit"
+              onClick={() => handleCreateAccount("reddit")}
+            />
+          </div>
         </div>
       </div>
 
@@ -955,8 +1019,14 @@ export function CardGrid() {
           onClose={closeAccount}
           accountId={accountModal.accountId}
         />
-      ) : (
+      ) : accountModal.platform === "instagram" ? (
         <InstagramAccountModal
+          isOpen={accountModal.isOpen}
+          onClose={closeAccount}
+          accountId={accountModal.accountId}
+        />
+      ) : (
+        <RedditAccountModal
           isOpen={accountModal.isOpen}
           onClose={closeAccount}
           accountId={accountModal.accountId}
@@ -968,7 +1038,7 @@ export function CardGrid() {
         onClose={closeDeleteModal}
         onConfirm={handleDeleteAccount}
         title="Delete Account"
-        message={`Are you sure you want to delete this ${deleteModal.platform === "twitter" ? "Twitter" : deleteModal.platform === "youtube" ? "YouTube" : "Instagram"} account? This action cannot be undone.`}
+        message={`Are you sure you want to delete this ${deleteModal.platform === "twitter" ? "Twitter" : deleteModal.platform === "youtube" ? "YouTube" : deleteModal.platform === "instagram" ? "Instagram" : "Reddit"} account? This action cannot be undone.`}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"

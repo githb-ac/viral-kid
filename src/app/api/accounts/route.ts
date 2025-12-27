@@ -27,6 +27,14 @@ interface AccountWithCredentials {
     instagramUsername: string | null;
     accessToken: string | null;
   } | null;
+  redditCredentials: {
+    username: string | null;
+    accessToken: string | null;
+  } | null;
+  redditConfig: {
+    enabled: boolean;
+    subreddit: string | null;
+  } | null;
   openRouterCredentials: {
     apiKey: string | null;
     selectedModel: string | null;
@@ -74,6 +82,18 @@ export async function GET() {
             accessToken: true,
           },
         },
+        redditCredentials: {
+          select: {
+            username: true,
+            accessToken: true,
+          },
+        },
+        redditConfig: {
+          select: {
+            enabled: true,
+            subreddit: true,
+          },
+        },
         openRouterCredentials: {
           select: {
             apiKey: true,
@@ -114,6 +134,14 @@ export async function GET() {
           hasApiKey = true; // Instagram doesn't need extra API key for now
           hasSearchTerm = true; // Instagram doesn't need search term
           isAutomationEnabled = false; // TODO: Add when Instagram config has enabled field
+        } else if (account.platform === "reddit") {
+          isConnected = !!account.redditCredentials?.accessToken;
+          displayName = account.redditCredentials?.username
+            ? `u/${account.redditCredentials.username}`
+            : null;
+          hasApiKey = true; // Reddit doesn't need extra API key
+          hasSearchTerm = !!account.redditConfig?.subreddit?.trim(); // Subreddit is like search term
+          isAutomationEnabled = account.redditConfig?.enabled ?? false;
         }
 
         // OpenRouter credentials (shared across platforms)
@@ -168,11 +196,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { platform } = body;
 
-    if (!platform || !["twitter", "youtube", "instagram"].includes(platform)) {
+    if (
+      !platform ||
+      !["twitter", "youtube", "instagram", "reddit"].includes(platform)
+    ) {
       return NextResponse.json(
         {
           error:
-            "Invalid platform. Must be 'twitter', 'youtube', or 'instagram'",
+            "Invalid platform. Must be 'twitter', 'youtube', 'instagram', or 'reddit'",
         },
         { status: 400 }
       );
@@ -197,10 +228,15 @@ export async function POST(request: Request) {
               youtubeCredentials: { create: {} },
               youtubeConfig: { create: {} },
             }
-          : {
-              instagramCredentials: { create: {} },
-              instagramConfig: { create: {} },
-            };
+          : platform === "instagram"
+            ? {
+                instagramCredentials: { create: {} },
+                instagramConfig: { create: {} },
+              }
+            : {
+                redditCredentials: { create: {} },
+                redditConfig: { create: {} },
+              };
 
     const account = await db.account.create({
       data: {
@@ -216,6 +252,8 @@ export async function POST(request: Request) {
         youtubeConfig: true,
         instagramCredentials: true,
         instagramConfig: true,
+        redditCredentials: true,
+        redditConfig: true,
       },
     });
 

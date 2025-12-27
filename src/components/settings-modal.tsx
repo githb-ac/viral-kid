@@ -15,7 +15,7 @@ import {
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  platform: "twitter" | "youtube" | "instagram";
+  platform: "twitter" | "youtube" | "instagram" | "reddit";
   accountId: string;
 }
 

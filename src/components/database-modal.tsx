@@ -36,7 +36,7 @@ interface DatabaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountId: string;
-  platform: "twitter" | "youtube" | "instagram";
+  platform: "twitter" | "youtube" | "instagram" | "reddit";
 }
 
 const dangerButtonHoverState = {
