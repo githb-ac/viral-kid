@@ -76,6 +76,7 @@ model Account {
 
 model TwitterConfiguration {
   id                String   @id @default(cuid())
+  enabled           Boolean  @default(false) // Whether automation is active
   searchTerm        String   @default("")
   schedule          String   @default("every_hour") // every_5_min, every_10_min, every_30_min, every_hour, every_3_hours, every_6_hours
   minimumLikesCount Int      @default(20) // Minimum likes filter for search

@@ -15,6 +15,13 @@ import {
   Plus,
   Trash2,
   LogOut,
+  Play,
+  Square,
+  FlaskConical,
+  Loader2,
+  Check,
+  X,
+  ChevronDown,
 } from "lucide-react";
 import { SettingsModal } from "./settings-modal";
 import { AccountModal } from "./account-modal";
@@ -25,12 +32,23 @@ import { LogsModal } from "./logs-modal";
 import { DatabaseModal } from "./database-modal";
 import { iconButtonHoverState, buttonHoverState } from "@/lib/animations";
 
+interface SetupStatus {
+  oauth: boolean;
+  apiKey: boolean;
+  searchTerm: boolean;
+  openRouter: boolean;
+  llmModel: boolean;
+}
+
 interface Account {
   id: string;
   platform: "twitter" | "youtube" | "instagram";
   name: string;
   displayName: string;
   isConnected: boolean;
+  setup: SetupStatus;
+  isReady: boolean;
+  isAutomationEnabled: boolean;
 }
 
 interface PlatformCardProps {
@@ -40,7 +58,11 @@ interface PlatformCardProps {
   onLogsClick: () => void;
   onDatabaseClick: () => void;
   onDeleteClick: () => void;
+  onToggleAutomation: () => void;
+  onTestPipeline: () => void;
   canDelete: boolean;
+  isRunning: boolean;
+  isToggling: boolean;
 }
 
 interface AddAccountCardProps {
@@ -77,6 +99,27 @@ const dangerButtonHoverState = {
     "0 2px 8px rgba(0,0,0,0.3), inset 0 0px 0px rgba(0,0,0,0), inset 0 1px 0 rgba(255,255,255,0.1)",
 };
 
+const playButtonHoverState = {
+  color: "rgba(34,197,94,1)",
+  backgroundColor: "rgba(34,197,94,0.15)",
+  boxShadow:
+    "0 2px 8px rgba(0,0,0,0.3), inset 0 0px 0px rgba(0,0,0,0), inset 0 1px 0 rgba(255,255,255,0.1)",
+};
+
+const stopButtonHoverState = {
+  color: "rgba(239,68,68,1)",
+  backgroundColor: "rgba(239,68,68,0.15)",
+  boxShadow:
+    "0 2px 8px rgba(0,0,0,0.3), inset 0 0px 0px rgba(0,0,0,0), inset 0 1px 0 rgba(255,255,255,0.1)",
+};
+
+const testButtonHoverState = {
+  color: "rgba(168,85,247,1)",
+  backgroundColor: "rgba(168,85,247,0.15)",
+  boxShadow:
+    "0 2px 8px rgba(0,0,0,0.3), inset 0 0px 0px rgba(0,0,0,0), inset 0 1px 0 rgba(255,255,255,0.1)",
+};
+
 function PlatformCard({
   account,
   onSettingsClick,
@@ -84,7 +127,11 @@ function PlatformCard({
   onLogsClick,
   onDatabaseClick,
   onDeleteClick,
+  onToggleAutomation,
+  onTestPipeline,
   canDelete,
+  isRunning,
+  isToggling,
 }: PlatformCardProps) {
   const icon =
     account.platform === "twitter" ? (
@@ -104,9 +151,45 @@ function PlatformCard({
 
   const label = account.displayName || account.platform;
 
+  // Get setup items based on platform
+  const getSetupItems = () => {
+    const items = [
+      {
+        label:
+          account.platform === "twitter"
+            ? "Twitter"
+            : account.platform === "youtube"
+              ? "YouTube"
+              : "Instagram",
+        done: account.setup.oauth,
+      },
+    ];
+
+    // Twitter-specific requirements
+    if (account.platform === "twitter") {
+      items.push(
+        { label: "RapidAPI", done: account.setup.apiKey },
+        { label: "Search Term", done: account.setup.searchTerm }
+      );
+    }
+
+    items.push(
+      { label: "OpenRouter", done: account.setup.openRouter },
+      { label: "LLM Model", done: account.setup.llmModel }
+    );
+
+    return items;
+  };
+
+  const setupItems = getSetupItems();
+  const completedCount = setupItems.filter((item) => item.done).length;
+  const allComplete = completedCount === setupItems.length;
+
+  const [isSetupExpanded, setIsSetupExpanded] = useState(false);
+
   return (
     <motion.div
-      className="group relative flex h-48 w-72 cursor-pointer flex-col overflow-hidden rounded-2xl border backdrop-blur-xl"
+      className="group relative flex w-72 cursor-pointer flex-col overflow-hidden rounded-2xl border backdrop-blur-xl"
       style={{
         background:
           "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
@@ -137,12 +220,123 @@ function PlatformCard({
       </div>
 
       {/* Icon */}
-      <div className="relative z-10 flex flex-1 items-center justify-center">
+      <div className="relative z-10 flex flex-1 items-center justify-center py-3">
         <div className={iconColor}>{icon}</div>
+      </div>
+
+      {/* Setup Checklist - Collapsible */}
+      <div className="relative z-10 mx-4 mb-3 rounded-xl border border-white/5 bg-white/[0.03] overflow-hidden">
+        {/* Header - Always visible */}
+        <button
+          type="button"
+          onClick={() => setIsSetupExpanded(!isSetupExpanded)}
+          className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-white/[0.02]"
+        >
+          <div className="flex items-center gap-2">
+            <motion.div
+              animate={{ rotate: isSetupExpanded ? 0 : -90 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="h-3 w-3 text-white/40" />
+            </motion.div>
+            <span
+              className={`text-xs font-medium ${
+                allComplete ? "text-green-400" : "text-amber-400"
+              }`}
+            >
+              {allComplete ? "Ready" : "Not Ready"}
+            </span>
+          </div>
+          <span className="text-[10px] font-medium text-white/40">
+            {completedCount}/{setupItems.length}
+          </span>
+        </button>
+
+        {/* Expandable content */}
+        <AnimatePresence initial={false}>
+          {isSetupExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-1 px-3 pb-2 pt-1 border-t border-white/5">
+                {setupItems.map((item, index) => (
+                  <motion.div
+                    key={item.label}
+                    className="flex items-center gap-2"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.15, delay: index * 0.03 }}
+                  >
+                    <div
+                      className={`flex h-3.5 w-3.5 items-center justify-center rounded-full ${
+                        item.done
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-white/5 text-white/20"
+                      }`}
+                    >
+                      {item.done ? (
+                        <Check className="h-2 w-2" strokeWidth={3} />
+                      ) : (
+                        <X className="h-2 w-2" strokeWidth={3} />
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs ${
+                        item.done ? "text-white/70" : "text-white/30"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Action buttons */}
       <div className="relative z-10 flex items-center justify-center gap-1 border-t border-white/10 px-4 py-3">
+        {/* Play/Stop Toggle */}
+        <ActionButton
+          icon={
+            isToggling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : account.isAutomationEnabled ? (
+              <Square className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )
+          }
+          label={
+            isToggling
+              ? "Toggling..."
+              : account.isAutomationEnabled
+                ? "Stop Automation"
+                : "Start Automation"
+          }
+          onClick={onToggleAutomation}
+          variant={account.isAutomationEnabled ? "stop" : "play"}
+          disabled={isToggling || !account.isReady}
+        />
+        {/* Test Pipeline */}
+        <ActionButton
+          icon={
+            isRunning ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FlaskConical className="h-4 w-4" />
+            )
+          }
+          label={isRunning ? "Testing..." : "Test Pipeline"}
+          onClick={onTestPipeline}
+          variant="test"
+          disabled={isRunning || !account.isReady}
+        />
         <ActionButton
           icon={<Database className="h-4 w-4" />}
           label="Database"
@@ -262,27 +456,44 @@ function ActionButton({
   label,
   onClick,
   variant = "default",
+  disabled = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "play" | "stop" | "test";
+  disabled?: boolean;
 }) {
+  const getHoverState = () => {
+    if (disabled) return {};
+    if (variant === "danger") return dangerButtonHoverState;
+    if (variant === "play") return playButtonHoverState;
+    if (variant === "stop") return stopButtonHoverState;
+    if (variant === "test") return testButtonHoverState;
+    return iconButtonHoverState;
+  };
+
+  // Active state colors for enabled automation
+  const getActiveColor = () => {
+    if (variant === "stop") return "rgba(239,68,68,0.8)"; // Red when automation is on
+    return disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.5)";
+  };
+
   return (
     <motion.button
       className="relative rounded-lg px-2 py-2"
       style={{
-        color: "rgba(255,255,255,0.5)",
+        color: getActiveColor(),
         backgroundColor: "rgba(255,255,255,0)",
+        cursor: disabled ? "not-allowed" : "pointer",
       }}
-      whileHover={
-        variant === "danger" ? dangerButtonHoverState : iconButtonHoverState
-      }
-      whileTap={{ scale: 0.95 }}
+      whileHover={getHoverState()}
+      whileTap={disabled ? {} : { scale: 0.95 }}
       transition={{ duration: 0.15 }}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       title={label}
       aria-label={label}
+      disabled={disabled}
     >
       {icon}
     </motion.button>
@@ -346,6 +557,12 @@ function Logo() {
 export function CardGrid() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [runningAccounts, setRunningAccounts] = useState<Set<string>>(
+    new Set()
+  );
+  const [togglingAccounts, setTogglingAccounts] = useState<Set<string>>(
+    new Set()
+  );
 
   const [settingsModal, setSettingsModal] = useState<{
     isOpen: boolean;
@@ -479,6 +696,8 @@ export function CardGrid() {
 
   const closeSettings = () => {
     setSettingsModal((prev) => ({ ...prev, isOpen: false }));
+    // Refresh accounts to update setup status (search term, etc.)
+    fetchAccounts();
   };
 
   const openAccount = (account: Account) => {
@@ -519,6 +738,97 @@ export function CardGrid() {
     setDatabaseModal((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const handleRunPipeline = async (account: Account) => {
+    if (runningAccounts.has(account.id)) return;
+
+    setRunningAccounts((prev) => new Set(prev).add(account.id));
+
+    try {
+      // Determine the API endpoint based on platform
+      const endpoint =
+        account.platform === "twitter"
+          ? "/api/twitter/run"
+          : account.platform === "youtube"
+            ? "/api/youtube/run"
+            : "/api/instagram/run";
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: account.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Pipeline failed");
+      }
+
+      if (data.replied) {
+        toast.success(`Replied to tweet by @${data.repliedTo}`);
+      } else if (data.message) {
+        toast(data.message, { icon: "ℹ️" });
+      } else {
+        toast.success("Pipeline completed");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to run pipeline"
+      );
+    } finally {
+      setRunningAccounts((prev) => {
+        const next = new Set(prev);
+        next.delete(account.id);
+        return next;
+      });
+    }
+  };
+
+  const handleToggleAutomation = async (account: Account) => {
+    if (togglingAccounts.has(account.id)) return;
+
+    setTogglingAccounts((prev) => new Set(prev).add(account.id));
+
+    try {
+      const endpoint =
+        account.platform === "twitter"
+          ? "/api/twitter/toggle"
+          : account.platform === "youtube"
+            ? "/api/youtube/toggle"
+            : "/api/instagram/toggle";
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: account.id,
+          enabled: !account.isAutomationEnabled,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to toggle automation");
+      }
+
+      // Refresh accounts to get updated state
+      await fetchAccounts();
+
+      toast.success(data.enabled ? "Automation started" : "Automation stopped");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to toggle automation"
+      );
+    } finally {
+      setTogglingAccounts((prev) => {
+        const next = new Set(prev);
+        next.delete(account.id);
+        return next;
+      });
+    }
+  };
+
   // Separate accounts by platform
   const twitterAccounts = accounts.filter((a) => a.platform === "twitter");
   const youtubeAccounts = accounts.filter((a) => a.platform === "youtube");
@@ -549,7 +859,11 @@ export function CardGrid() {
                     onLogsClick={() => openLogs(account)}
                     onDatabaseClick={() => openDatabase(account)}
                     onDeleteClick={() => openDeleteModal(account)}
+                    onToggleAutomation={() => handleToggleAutomation(account)}
+                    onTestPipeline={() => handleRunPipeline(account)}
                     canDelete={account.id !== firstTwitterId}
+                    isRunning={runningAccounts.has(account.id)}
+                    isToggling={togglingAccounts.has(account.id)}
                   />
                 ))}
             </AnimatePresence>
@@ -572,7 +886,11 @@ export function CardGrid() {
                     onLogsClick={() => openLogs(account)}
                     onDatabaseClick={() => openDatabase(account)}
                     onDeleteClick={() => openDeleteModal(account)}
+                    onToggleAutomation={() => handleToggleAutomation(account)}
+                    onTestPipeline={() => handleRunPipeline(account)}
                     canDelete={account.id !== firstYoutubeId}
+                    isRunning={runningAccounts.has(account.id)}
+                    isToggling={togglingAccounts.has(account.id)}
                   />
                 ))}
             </AnimatePresence>
@@ -595,7 +913,11 @@ export function CardGrid() {
                     onLogsClick={() => openLogs(account)}
                     onDatabaseClick={() => openDatabase(account)}
                     onDeleteClick={() => openDeleteModal(account)}
+                    onToggleAutomation={() => handleToggleAutomation(account)}
+                    onTestPipeline={() => handleRunPipeline(account)}
                     canDelete={account.id !== firstInstagramId}
+                    isRunning={runningAccounts.has(account.id)}
+                    isToggling={togglingAccounts.has(account.id)}
                   />
                 ))}
             </AnimatePresence>

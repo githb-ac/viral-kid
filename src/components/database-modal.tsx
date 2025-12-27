@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -98,38 +99,98 @@ function formatTimestamp(dateStr: string) {
   });
 }
 
-function TweetCell({ text, username }: { text: string; username: string }) {
+function TruncatedText({
+  text,
+  subtitle,
+  className = "",
+}: {
+  text: string;
+  subtitle?: string;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+
+  // Check if text is actually truncated
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (textRef.current) {
+        const { scrollHeight, clientHeight } = textRef.current;
+        setIsTruncated(scrollHeight > clientHeight);
+      }
+    };
+
+    checkTruncation();
+
+    const resizeObserver = new ResizeObserver(checkTruncation);
+    if (textRef.current) {
+      resizeObserver.observe(textRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [text]);
+
+  const handleMouseEnter = () => {
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    setTooltipPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+    });
+    setIsHovered(true);
+  };
+
+  const canRenderPortal = typeof document !== "undefined";
 
   return (
-    <td
-      className="relative max-w-xs px-3 py-3"
-      onMouseEnter={() => setIsHovered(true)}
+    <div
+      ref={containerRef}
+      className={`relative ${className}`}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="mb-1 text-xs text-white/40">@{username}</div>
-      <div className="line-clamp-2 text-sm text-white/80">{text}</div>
+      {subtitle && <div className="mb-1 text-xs text-white/40">{subtitle}</div>}
+      <div ref={textRef} className="line-clamp-2 text-sm text-white/80">
+        {text}
+      </div>
 
-      {/* Tooltip */}
-      <AnimatePresence>
-        {isHovered && text.length > 100 && (
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-0 top-full z-50 mt-1 max-w-md rounded-lg border p-3"
+      {/* Portal tooltip to body */}
+      {canRenderPortal &&
+        isHovered &&
+        isTruncated &&
+        createPortal(
+          <div
+            className="pointer-events-none rounded-lg border p-3"
             style={{
+              position: "fixed",
+              top: tooltipPos.top,
+              left: Math.min(tooltipPos.left, window.innerWidth - 320),
+              zIndex: 99999,
+              maxWidth: 300,
               background: "rgba(0, 0, 0, 0.95)",
               borderColor: "rgba(255, 255, 255, 0.2)",
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
             }}
           >
-            <div className="mb-1 text-xs text-white/40">@{username}</div>
+            {subtitle && (
+              <div className="mb-1 text-xs text-white/40">{subtitle}</div>
+            )}
             <div className="text-sm leading-relaxed text-white/90">{text}</div>
-          </motion.div>
+          </div>,
+          document.body
         )}
-      </AnimatePresence>
+    </div>
+  );
+}
+
+function TweetCell({ text, username }: { text: string; username: string }) {
+  return (
+    <td className="relative max-w-xs px-3 py-3">
+      <TruncatedText text={text} subtitle={`@${username}`} />
     </td>
   );
 }
@@ -320,11 +381,9 @@ export function DatabaseModal({
                           <td className="px-3 py-3 text-xs text-white/50">
                             {formatTimestamp(tweet.createdAt)}
                           </td>
-                          <td className="max-w-xs px-3 py-3">
+                          <td className="relative max-w-xs px-3 py-3">
                             {tweet.ourReply ? (
-                              <div className="line-clamp-2 text-sm text-white/80">
-                                {tweet.ourReply}
-                              </div>
+                              <TruncatedText text={tweet.ourReply} />
                             ) : (
                               <span className="text-xs text-white/30">
                                 No reply

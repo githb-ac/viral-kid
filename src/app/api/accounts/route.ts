@@ -10,6 +10,11 @@ interface AccountWithCredentials {
   twitterCredentials: {
     username: string | null;
     accessToken: string | null;
+    rapidApiKey: string | null;
+  } | null;
+  twitterConfig: {
+    enabled: boolean;
+    searchTerm: string | null;
   } | null;
   youtubeCredentials: {
     channelTitle: string | null;
@@ -18,6 +23,10 @@ interface AccountWithCredentials {
   instagramCredentials: {
     instagramUsername: string | null;
     accessToken: string | null;
+  } | null;
+  openRouterCredentials: {
+    apiKey: string | null;
+    selectedModel: string | null;
   } | null;
 }
 
@@ -36,6 +45,13 @@ export async function GET() {
           select: {
             username: true,
             accessToken: true,
+            rapidApiKey: true,
+          },
+        },
+        twitterConfig: {
+          select: {
+            enabled: true,
+            searchTerm: true,
           },
         },
         youtubeCredentials: {
@@ -50,6 +66,12 @@ export async function GET() {
             accessToken: true,
           },
         },
+        openRouterCredentials: {
+          select: {
+            apiKey: true,
+            selectedModel: true,
+          },
+        },
       },
     });
 
@@ -58,21 +80,45 @@ export async function GET() {
       (account: AccountWithCredentials) => {
         let isConnected = false;
         let displayName: string | null = null;
+        let hasApiKey = false; // Platform-specific API (RapidAPI for Twitter)
+        let hasSearchTerm = false; // Twitter-specific search term
+        let isAutomationEnabled = false; // Whether scheduled automation is active
 
         if (account.platform === "twitter") {
           isConnected = !!account.twitterCredentials?.accessToken;
           displayName = account.twitterCredentials?.username
             ? `@${account.twitterCredentials.username}`
             : null;
+          hasApiKey = !!account.twitterCredentials?.rapidApiKey;
+          hasSearchTerm = !!account.twitterConfig?.searchTerm?.trim();
+          isAutomationEnabled = account.twitterConfig?.enabled ?? false;
         } else if (account.platform === "youtube") {
           isConnected = !!account.youtubeCredentials?.accessToken;
           displayName = account.youtubeCredentials?.channelTitle || null;
+          hasApiKey = true; // YouTube doesn't need extra API key for now
+          hasSearchTerm = true; // YouTube doesn't need search term
+          isAutomationEnabled = false; // TODO: Add when YouTube config has enabled field
         } else if (account.platform === "instagram") {
           isConnected = !!account.instagramCredentials?.accessToken;
           displayName = account.instagramCredentials?.instagramUsername
             ? `@${account.instagramCredentials.instagramUsername}`
             : null;
+          hasApiKey = true; // Instagram doesn't need extra API key for now
+          hasSearchTerm = true; // Instagram doesn't need search term
+          isAutomationEnabled = false; // TODO: Add when Instagram config has enabled field
         }
+
+        // OpenRouter credentials (shared across platforms)
+        const hasOpenRouterKey = !!account.openRouterCredentials?.apiKey;
+        const hasLlmModel = !!account.openRouterCredentials?.selectedModel;
+
+        // Ready to run = all required credentials configured
+        const isReady =
+          isConnected &&
+          hasApiKey &&
+          hasSearchTerm &&
+          hasOpenRouterKey &&
+          hasLlmModel;
 
         return {
           id: account.id,
@@ -81,6 +127,15 @@ export async function GET() {
           order: account.order,
           isConnected,
           displayName,
+          setup: {
+            oauth: isConnected,
+            apiKey: hasApiKey,
+            searchTerm: hasSearchTerm,
+            openRouter: hasOpenRouterKey,
+            llmModel: hasLlmModel,
+          },
+          isReady,
+          isAutomationEnabled,
         };
       }
     );
