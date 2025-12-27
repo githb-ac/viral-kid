@@ -11,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   backdropVariants,
   modalVariants,
@@ -137,8 +138,9 @@ export function LogsModal({
       });
       if (!res.ok) throw new Error("Failed to clear logs");
       setLogs([]);
-    } catch (error) {
-      console.error("Failed to clear logs:", error);
+      toast.success("Logs cleared");
+    } catch {
+      toast.error("Failed to clear logs");
     } finally {
       setIsClearing(false);
     }

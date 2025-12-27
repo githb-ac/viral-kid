@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import {
   X,
   Loader2,
@@ -314,9 +315,10 @@ export function InstagramAccountModal({
       const data = await res.json();
       if (data.models) {
         setOpenRouterModels(data.models);
+        toast.success("Models synced");
       }
-    } catch (err) {
-      console.error("Failed to sync models:", err);
+    } catch {
+      toast.error("Failed to sync models");
     } finally {
       setIsSyncingModels(false);
     }
@@ -355,14 +357,13 @@ export function InstagramAccountModal({
         );
 
         if (openRouterRes.ok) {
-          // Sync models after saving API key
           await handleSyncModels(openRouterApiKey);
         }
       }
 
-      onClose();
-    } catch (err) {
-      console.error("Failed to save credentials:", err);
+      toast.success("Credentials saved");
+    } catch {
+      toast.error("Failed to save");
     } finally {
       setIsSaving(false);
     }
@@ -381,8 +382,8 @@ export function InstagramAccountModal({
       } else {
         throw new Error("Failed to get auth URL");
       }
-    } catch (err) {
-      console.error("Failed to initiate OAuth:", err);
+    } catch {
+      toast.error("Failed to connect");
       setIsConnecting(false);
     }
   };
@@ -392,8 +393,9 @@ export function InstagramAccountModal({
       await navigator.clipboard.writeText(callbackUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+      toast.success("Copied");
+    } catch {
+      toast.error("Failed to copy");
     }
   };
 

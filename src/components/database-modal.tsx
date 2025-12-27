@@ -11,6 +11,7 @@ import {
   Heart,
   MessageCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   backdropVariants,
   modalVariants,
@@ -174,8 +175,9 @@ export function DatabaseModal({
       });
       if (!res.ok) throw new Error("Failed to clear tweets");
       setTweets([]);
-    } catch (error) {
-      console.error("Failed to clear tweets:", error);
+      toast.success("Data cleared");
+    } catch {
+      toast.error("Failed to clear data");
     } finally {
       setIsClearing(false);
     }

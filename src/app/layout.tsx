@@ -3,6 +3,7 @@ import { Roboto, Sixtyfour } from "next/font/google";
 import "./globals.css";
 import { LenisProvider } from "@/components/lenis-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { Providers } from "@/components/providers";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -67,7 +68,9 @@ export default function RootLayout({
         style={{ backgroundColor: "#0a0a0a" }}
       >
         <ErrorBoundary>
-          <LenisProvider>{children}</LenisProvider>
+          <Providers>
+            <LenisProvider>{children}</LenisProvider>
+          </Providers>
         </ErrorBoundary>
       </body>
     </html>

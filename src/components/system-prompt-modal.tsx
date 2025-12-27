@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Info,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   backdropVariants,
   modalVariants,
@@ -347,9 +348,10 @@ export function SystemPromptModal({
         throw new Error("Failed to save system prompt");
       }
 
+      toast.success("System prompt saved");
       onClose();
-    } catch (err) {
-      console.error("Failed to save system prompt:", err);
+    } catch {
+      toast.error("Failed to save");
     } finally {
       setIsSaving(false);
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   backdropVariants,
   modalVariants,
@@ -187,9 +188,10 @@ export function SettingsModal({
         throw new Error("Failed to save configuration");
       }
 
+      toast.success("Settings saved");
       onClose();
-    } catch (err) {
-      console.error("Failed to save configuration:", err);
+    } catch {
+      toast.error("Failed to save");
     } finally {
       setIsSaving(false);
     }

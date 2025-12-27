@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import {
   Twitter,
   Youtube,
@@ -397,8 +398,9 @@ export function CardGrid() {
       if (!res.ok) throw new Error("Failed to create account");
 
       await fetchAccounts();
-    } catch (error) {
-      console.error("Failed to create account:", error);
+      toast.success("Account created");
+    } catch {
+      toast.error("Failed to create account");
     }
   };
 
@@ -426,8 +428,9 @@ export function CardGrid() {
 
       // Optimistically remove from accounts state (no refetch needed)
       setAccounts((prev) => prev.filter((a) => a.id !== accountId));
-    } catch (error) {
-      console.error("Failed to delete account:", error);
+      toast.success("Account deleted");
+    } catch {
+      toast.error("Failed to delete account");
     }
   };
 
