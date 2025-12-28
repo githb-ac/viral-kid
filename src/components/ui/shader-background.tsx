@@ -66,9 +66,9 @@ export function ShaderBackground({ onLoad }: ShaderBackgroundProps) {
           rotationX={0}
           rotationY={130}
           rotationZ={70}
-          color1="#73bfc4"
-          color2="#ff810a"
-          color3="#8da0ce"
+          color1="#0a0a1f"
+          color2="#1a1a3d"
+          color3="#2d1b4e"
           brightness={0.8}
           reflection={0.4}
           wireframe={false}

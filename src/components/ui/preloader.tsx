@@ -23,7 +23,7 @@ export function Preloader({ isLoaded }: PreloaderProps) {
         transition: "opacity 0.8s ease-out",
       }}
     >
-      <h1 className="logo-rainbow select-none font-[family-name:var(--font-sixtyfour)] text-5xl tracking-tight">
+      <h1 className="logo-rainbow select-none font-[family-name:var(--font-logo)] text-5xl tracking-tight">
         Viral Kid
       </h1>
     </div>

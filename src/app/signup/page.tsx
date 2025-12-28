@@ -136,7 +136,7 @@ function SignupForm() {
                 "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.2)",
             }}
           >
-            <h1 className="logo-rainbow select-none font-[family-name:var(--font-sixtyfour)] text-4xl tracking-tight">
+            <h1 className="logo-rainbow select-none font-[family-name:var(--font-logo)] text-4xl tracking-tight">
               Viral Kid
             </h1>
           </motion.div>
@@ -252,6 +252,7 @@ function SignupForm() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Create a password..."
+                      autoComplete="new-password"
                       className="w-full rounded-lg border px-4 py-3 text-white/90 outline-none backdrop-blur-xl transition-all duration-200"
                       style={{
                         background: "rgba(255,255,255,0.05)",
@@ -286,6 +287,7 @@ function SignupForm() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm your password..."
+                      autoComplete="new-password"
                       className="w-full rounded-lg border px-4 py-3 text-white/90 outline-none backdrop-blur-xl transition-all duration-200"
                       style={{
                         background: "rgba(255,255,255,0.05)",

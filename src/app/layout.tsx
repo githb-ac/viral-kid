@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Roboto, Sixtyfour } from "next/font/google";
+import { Roboto, BBH_Bartle } from "next/font/google";
 import "./globals.css";
 import { LenisProvider } from "@/components/lenis-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -11,10 +11,10 @@ const roboto = Roboto({
   variable: "--font-roboto",
 });
 
-const sixtyfour = Sixtyfour({
+const bbhBartle = BBH_Bartle({
   subsets: ["latin"],
   weight: "400",
-  variable: "--font-sixtyfour",
+  variable: "--font-logo",
 });
 
 export const metadata: Metadata = {
@@ -64,7 +64,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${roboto.className} ${sixtyfour.variable}`}
+        className={`${roboto.className} ${bbhBartle.variable}`}
         style={{ backgroundColor: "#0a0a0a" }}
       >
         <ErrorBoundary>

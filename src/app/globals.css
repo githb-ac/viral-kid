@@ -105,23 +105,33 @@ body {
   transition: all 0.2s ease-out;
 }
 
-/* Logo hue-rotating rainbow gradient animation */
-@keyframes hueRotate {
+/* Logo flowing gradient animation */
+@keyframes gradientFlow {
   0% {
-    filter: hue-rotate(0deg);
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
   100% {
-    filter: hue-rotate(360deg);
+    background-position: 0% 50%;
   }
 }
 
 .logo-rainbow {
-  background: linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #ff0080);
-  background-size: 300% 300%;
+  background: linear-gradient(
+    135deg,
+    #a855f7,
+    #ec4899,
+    #06b6d4,
+    #8b5cf6,
+    #a855f7
+  );
+  background-size: 400% 400%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: hueRotate 3s linear infinite;
+  animation: gradientFlow 6s ease infinite;
 }
 
 /* Hide default scrollbars globally */
