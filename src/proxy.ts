@@ -8,6 +8,7 @@ export async function proxy(req: NextRequest) {
     req.cookies.get("__Secure-authjs.session-token")?.value;
   const isLoggedIn = !!sessionToken;
   const isLoginPage = req.nextUrl.pathname === "/login";
+  const isSignupPage = req.nextUrl.pathname === "/signup";
   const isApiRoute = req.nextUrl.pathname.startsWith("/api");
 
   // Allow all API routes (they handle auth themselves)
@@ -15,8 +16,8 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect to login if not authenticated (pages only)
-  if (!isLoggedIn && !isLoginPage) {
+  // Redirect to login if not authenticated (except login and signup pages)
+  if (!isLoggedIn && !isLoginPage && !isSignupPage) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
