@@ -5,9 +5,11 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "npx prisma db push && echo 'Starting Next.js...' && node -e \"console.log('Node works, PORT=' + process.env.PORT)\" && npm run start",
+    "startCommand": "npm run start",
     "restartPolicyType": "on_failure",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 300
   },
   "variables": {
     "DATABASE_URL": "${{Postgres.DATABASE_URL}}",
