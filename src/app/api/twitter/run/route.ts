@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { TwitterApi } from "twitter-api-v2";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 interface TweetResult {
   __typename: string;
@@ -214,7 +215,7 @@ async function generateReplyWithLLM(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://viral-kid.app",
+        "HTTP-Referer": process.env.NEXTAUTH_URL || "https://viral-kid.app",
         "X-Title": "Viral Kid",
       },
       body: JSON.stringify({
@@ -238,7 +239,6 @@ async function generateReplyWithLLM(
   }
 
   const data = await response.json();
-  console.log("OpenRouter response:", JSON.stringify(data, null, 2));
 
   const reply = data.choices?.[0]?.message?.content?.trim();
 
@@ -264,15 +264,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get account with all related data
-    const account = await db.account.findUnique({
-      where: { id: accountId },
-      include: {
-        twitterCredentials: true,
-        twitterConfig: true,
-        openRouterCredentials: true,
-      },
-    });
+    // Check for cron secret (internal calls) or user session
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCronCall =
+      cronSecret &&
+      cronSecret === process.env.CRON_SECRET &&
+      process.env.CRON_SECRET;
+
+    let account;
+    if (isCronCall) {
+      // Cron job call - just get the account directly
+      account = await db.account.findUnique({
+        where: { id: accountId },
+        include: {
+          twitterCredentials: true,
+          twitterConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    } else {
+      // User call - verify session and ownership
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      account = await db.account.findFirst({
+        where: { id: accountId, userId: session.user.id },
+        include: {
+          twitterCredentials: true,
+          twitterConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    }
 
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -478,42 +502,52 @@ export async function POST(request: Request) {
     );
 
     // Step 7: Store the interaction
-    await db.tweetInteraction.upsert({
-      where: {
-        accountId_tweetId: { accountId, tweetId: bestTweet.tweetId },
-      },
-      update: {
-        userTweet: bestTweet.userTweet,
-        username: bestTweet.username,
-        views: bestTweet.views,
-        hearts: bestTweet.hearts,
-        replies: bestTweet.replies,
-        ourReply: generatedReply,
-        ourReplyId: replyId,
-        repliedAt: new Date(),
-      },
-      create: {
-        accountId,
-        tweetId: bestTweet.tweetId,
-        userTweet: bestTweet.userTweet,
-        username: bestTweet.username,
-        views: bestTweet.views,
-        hearts: bestTweet.hearts,
-        replies: bestTweet.replies,
-        ourReply: generatedReply,
-        ourReplyId: replyId,
-        repliedAt: new Date(),
-      },
-    });
+    try {
+      await db.tweetInteraction.upsert({
+        where: {
+          accountId_tweetId: { accountId, tweetId: bestTweet.tweetId },
+        },
+        update: {
+          userTweet: bestTweet.userTweet,
+          username: bestTweet.username,
+          views: bestTweet.views,
+          hearts: bestTweet.hearts,
+          replies: bestTweet.replies,
+          ourReply: generatedReply,
+          ourReplyId: replyId,
+          repliedAt: new Date(),
+        },
+        create: {
+          accountId,
+          tweetId: bestTweet.tweetId,
+          userTweet: bestTweet.userTweet,
+          username: bestTweet.username,
+          views: bestTweet.views,
+          hearts: bestTweet.hearts,
+          replies: bestTweet.replies,
+          ourReply: generatedReply,
+          ourReplyId: replyId,
+          repliedAt: new Date(),
+        },
+      });
 
-    // Clean up old interactions (older than 24 hours without reply)
-    await db.tweetInteraction.deleteMany({
-      where: {
+      // Clean up old interactions (older than 24 hours without reply)
+      await db.tweetInteraction.deleteMany({
+        where: {
+          accountId,
+          ourReply: null,
+          createdAt: { lt: twentyFourHoursAgo },
+        },
+      });
+    } catch (dbError) {
+      console.error("Failed to store interaction:", dbError);
+      // Reply was posted successfully, just log the DB error
+      await createLog(
         accountId,
-        ourReply: null,
-        createdAt: { lt: twentyFourHoursAgo },
-      },
-    });
+        "warning",
+        "Reply posted but failed to record in database"
+      );
+    }
 
     return NextResponse.json({
       success: true,

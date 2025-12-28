@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Allow up to 60 seconds for processing multiple accounts
+export const maxDuration = 60;
 
 export async function GET(request: Request): Promise<NextResponse> {
   // Verify the request is from Vercel Cron
@@ -13,21 +13,21 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    console.log("Running YouTube comments cron job...");
+    console.log("Running Reddit automation cron job...");
 
-    // Find all YouTube accounts with automation enabled
-    const enabledConfigs = await db.youTubeConfiguration.findMany({
+    // Find all Reddit accounts with automation enabled
+    const enabledConfigs = await db.redditConfiguration.findMany({
       where: { enabled: true },
       include: {
         account: {
           include: {
-            youtubeCredentials: true,
+            redditCredentials: true,
           },
         },
       },
     });
 
-    console.log(`Found ${enabledConfigs.length} enabled YouTube accounts`);
+    console.log(`Found ${enabledConfigs.length} enabled Reddit accounts`);
 
     const results: Array<{
       accountId: string;
@@ -37,15 +37,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Filter accounts that should run
     const accountsToProcess = enabledConfigs.filter((config) => {
-      const credentials = config.account.youtubeCredentials;
-      if (!credentials?.accessToken || !credentials?.channelId) {
+      const credentials = config.account.redditCredentials;
+      if (!credentials?.accessToken) {
         console.log(
           `Skipping account ${config.accountId}: Missing credentials`
         );
         results.push({
           accountId: config.accountId,
           success: false,
-          message: "Missing YouTube credentials",
+          message: "Missing Reddit credentials",
         });
         return false;
       }
@@ -69,7 +69,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     const processAccount = async (config: (typeof accountsToProcess)[0]) => {
       const accountId = config.accountId;
       try {
-        const response = await fetch(`${baseUrl}/api/youtube/run`, {
+        const response = await fetch(`${baseUrl}/api/reddit/run`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -85,7 +85,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           success: response.ok,
           message: response.ok
             ? data.replied
-              ? `Replied to ${data.repliedTo}`
+              ? `Commented on post by u/${data.repliedTo}`
               : data.message || "No action needed"
             : data.error || "Unknown error",
         };
@@ -108,24 +108,20 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      message: "YouTube comments cron completed",
+      message: "Reddit automation cron completed",
       timestamp: new Date().toISOString(),
       processed: results.length,
       results,
     });
   } catch (error) {
-    console.error("YouTube comments cron error:", error);
+    console.error("Reddit automation cron error:", error);
     return NextResponse.json(
-      { error: "Failed to process YouTube comments" },
+      { error: "Failed to process Reddit automation" },
       { status: 500 }
     );
   }
 }
 
-/**
- * Check if the current time matches the schedule
- * This cron runs every 5 minutes, so we check if the current schedule interval matches
- */
 function checkSchedule(schedule: string): boolean {
   const now = new Date();
   const minutes = now.getMinutes();
@@ -133,25 +129,18 @@ function checkSchedule(schedule: string): boolean {
 
   switch (schedule) {
     case "every_5_min":
-      // Always run (cron runs every 5 min)
       return true;
     case "every_10_min":
-      // Run on 0, 10, 20, 30, 40, 50
       return minutes % 10 === 0;
     case "every_30_min":
-      // Run on 0, 30
       return minutes === 0 || minutes === 30;
     case "every_hour":
-      // Run on the hour
       return minutes === 0;
     case "every_3_hours":
-      // Run every 3 hours at the top of the hour
       return minutes === 0 && hours % 3 === 0;
     case "every_6_hours":
-      // Run every 6 hours at the top of the hour
       return minutes === 0 && hours % 6 === 0;
     default:
-      // Default to every hour
       return minutes === 0;
   }
 }

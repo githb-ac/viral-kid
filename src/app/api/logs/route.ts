@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("accountId");
 
@@ -11,6 +17,14 @@ export async function GET(request: Request) {
         { error: "accountId is required" },
         { status: 400 }
       );
+    }
+
+    // Verify account belongs to user
+    const account = await db.account.findFirst({
+      where: { id: accountId, userId: session.user.id },
+    });
+    if (!account) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
     const logs = await db.log.findMany({
@@ -31,6 +45,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { accountId, level, message, metadata } = body;
 
@@ -39,6 +58,14 @@ export async function POST(request: Request) {
         { error: "accountId, level, and message are required" },
         { status: 400 }
       );
+    }
+
+    // Verify account belongs to user
+    const account = await db.account.findFirst({
+      where: { id: accountId, userId: session.user.id },
+    });
+    if (!account) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
     if (!["info", "warning", "error", "success"].includes(level)) {
@@ -69,6 +96,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("accountId");
 
@@ -77,6 +109,14 @@ export async function DELETE(request: Request) {
         { error: "accountId is required" },
         { status: 400 }
       );
+    }
+
+    // Verify account belongs to user
+    const account = await db.account.findFirst({
+      where: { id: accountId, userId: session.user.id },
+    });
+    if (!account) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
     await db.log.deleteMany({

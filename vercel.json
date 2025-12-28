@@ -6,12 +6,12 @@
       "schedule": "0 * * * *"
     },
     {
-      "path": "/api/cron/youtube-trends",
-      "schedule": "0 */2 * * *"
-    },
-    {
       "path": "/api/cron/youtube-comments",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/reddit",
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/cleanup",

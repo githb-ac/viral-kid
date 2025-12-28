@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import {
   refreshTokenIfNeeded,
   fetchChannelVideos,
@@ -56,7 +57,7 @@ async function generateReplyWithLLM(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://viral-kid.app",
+        "HTTP-Referer": process.env.NEXTAUTH_URL || "https://viral-kid.app",
         "X-Title": "Viral Kid",
       },
       body: JSON.stringify({
@@ -104,15 +105,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get account with all related data
-    const account = await db.account.findUnique({
-      where: { id: accountId },
-      include: {
-        youtubeCredentials: true,
-        youtubeConfig: true,
-        openRouterCredentials: true,
-      },
-    });
+    // Check for cron secret (internal calls) or user session
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCronCall =
+      cronSecret &&
+      cronSecret === process.env.CRON_SECRET &&
+      process.env.CRON_SECRET;
+
+    let account;
+    if (isCronCall) {
+      // Cron job call - just get the account directly
+      account = await db.account.findUnique({
+        where: { id: accountId },
+        include: {
+          youtubeCredentials: true,
+          youtubeConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    } else {
+      // User call - verify session and ownership
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      account = await db.account.findFirst({
+        where: { id: accountId, userId: session.user.id },
+        include: {
+          youtubeCredentials: true,
+          youtubeConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    }
 
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -344,45 +369,55 @@ export async function POST(request: Request) {
     );
 
     // Step 9: Store the interaction
-    await db.youTubeCommentInteraction.upsert({
-      where: {
-        accountId_commentId: { accountId, commentId: bestComment.commentId },
-      },
-      update: {
-        videoId: bestComment.videoId,
-        videoTitle: bestComment.videoTitle,
-        userComment: bestComment.userComment,
-        authorName: bestComment.authorName,
-        authorChannelId: bestComment.authorChannelId,
-        likeCount: bestComment.likeCount,
-        ourReply: generatedReply,
-        ourReplyId: replyId,
-        repliedAt: new Date(),
-      },
-      create: {
-        accountId,
-        commentId: bestComment.commentId,
-        videoId: bestComment.videoId,
-        videoTitle: bestComment.videoTitle,
-        userComment: bestComment.userComment,
-        authorName: bestComment.authorName,
-        authorChannelId: bestComment.authorChannelId,
-        likeCount: bestComment.likeCount,
-        ourReply: generatedReply,
-        ourReplyId: replyId,
-        repliedAt: new Date(),
-      },
-    });
+    try {
+      await db.youTubeCommentInteraction.upsert({
+        where: {
+          accountId_commentId: { accountId, commentId: bestComment.commentId },
+        },
+        update: {
+          videoId: bestComment.videoId,
+          videoTitle: bestComment.videoTitle,
+          userComment: bestComment.userComment,
+          authorName: bestComment.authorName,
+          authorChannelId: bestComment.authorChannelId,
+          likeCount: bestComment.likeCount,
+          ourReply: generatedReply,
+          ourReplyId: replyId,
+          repliedAt: new Date(),
+        },
+        create: {
+          accountId,
+          commentId: bestComment.commentId,
+          videoId: bestComment.videoId,
+          videoTitle: bestComment.videoTitle,
+          userComment: bestComment.userComment,
+          authorName: bestComment.authorName,
+          authorChannelId: bestComment.authorChannelId,
+          likeCount: bestComment.likeCount,
+          ourReply: generatedReply,
+          ourReplyId: replyId,
+          repliedAt: new Date(),
+        },
+      });
 
-    // Clean up old interactions (older than 14 days)
-    // Since we only fetch comments from last 7 days, 14-day retention ensures no duplicates
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    await db.youTubeCommentInteraction.deleteMany({
-      where: {
+      // Clean up old interactions (older than 14 days)
+      // Since we only fetch comments from last 7 days, 14-day retention ensures no duplicates
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      await db.youTubeCommentInteraction.deleteMany({
+        where: {
+          accountId,
+          createdAt: { lt: fourteenDaysAgo },
+        },
+      });
+    } catch (dbError) {
+      console.error("Failed to store interaction:", dbError);
+      // Reply was posted successfully, just log the DB error
+      await createLog(
         accountId,
-        createdAt: { lt: fourteenDaysAgo },
-      },
-    });
+        "warning",
+        "Reply posted but failed to record in database"
+      );
+    }
 
     return NextResponse.json({
       success: true,

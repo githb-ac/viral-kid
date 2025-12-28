@@ -3,6 +3,13 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * YouTube Trends Cron Job
+ *
+ * Note: YouTube automation is handled by /api/cron/youtube-comments which runs every 5 minutes.
+ * This endpoint is kept for backwards compatibility but performs no action.
+ * Consider removing this from vercel.json if not needed.
+ */
 export async function GET(request: Request): Promise<NextResponse> {
   // Verify the request is from Vercel Cron
   const authHeader = request.headers.get("authorization");
@@ -10,25 +17,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    console.log("Running YouTube trends cron job...");
-
-    // TODO: Implement your YouTube trends fetching logic here
-    // Example:
-    // const youtube = getYouTubeClient();
-    // const trends = await youtube.getTrendingVideos({ region: "US" });
-    // await db.youtubeTrend.createMany({ data: trends });
-
-    return NextResponse.json({
-      success: true,
-      message: "YouTube trends fetched successfully",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("YouTube trends cron error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch YouTube trends" },
-      { status: 500 }
-    );
-  }
+  // YouTube automation is handled by youtube-comments cron
+  // This endpoint is a no-op kept for backwards compatibility
+  return NextResponse.json({
+    success: true,
+    message: "No-op: YouTube automation handled by youtube-comments cron",
+    timestamp: new Date().toISOString(),
+  });
 }

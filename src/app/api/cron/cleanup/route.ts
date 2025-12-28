@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CLEANUP_OLDER_THAN_DAYS = 30;
+const LOG_RETENTION_DAYS = 14;
+const INTERACTION_RETENTION_DAYS = 30;
 
 export async function GET(request: Request): Promise<NextResponse> {
   // Verify the request is from Vercel Cron
@@ -13,20 +15,57 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    console.log(
-      `Running cleanup cron job (removing data older than ${CLEANUP_OLDER_THAN_DAYS} days)...`
+    console.log("Running cleanup cron job...");
+
+    const logCutoff = new Date();
+    logCutoff.setDate(logCutoff.getDate() - LOG_RETENTION_DAYS);
+
+    const interactionCutoff = new Date();
+    interactionCutoff.setDate(
+      interactionCutoff.getDate() - INTERACTION_RETENTION_DAYS
     );
 
-    // TODO: Implement your cleanup logic here
-    // Example:
-    // const cutoffDate = new Date();
-    // cutoffDate.setDate(cutoffDate.getDate() - CLEANUP_OLDER_THAN_DAYS);
-    // await db.twitterTrend.deleteMany({ where: { createdAt: { lt: cutoffDate } } });
-    // await db.youtubeTrend.deleteMany({ where: { createdAt: { lt: cutoffDate } } });
+    // Clean up old logs
+    const deletedLogs = await db.log.deleteMany({
+      where: { createdAt: { lt: logCutoff } },
+    });
+
+    // Clean up old tweet interactions (unreplied only - keep replied ones longer)
+    const deletedTweets = await db.tweetInteraction.deleteMany({
+      where: {
+        createdAt: { lt: interactionCutoff },
+        ourReply: null,
+      },
+    });
+
+    // Clean up old YouTube interactions (unreplied only)
+    const deletedYouTube = await db.youTubeCommentInteraction.deleteMany({
+      where: {
+        createdAt: { lt: interactionCutoff },
+        ourReply: null,
+      },
+    });
+
+    // Clean up old Reddit interactions (unreplied only)
+    const deletedReddit = await db.redditInteraction.deleteMany({
+      where: {
+        createdAt: { lt: interactionCutoff },
+        ourComment: null,
+      },
+    });
+
+    const summary = {
+      logs: deletedLogs.count,
+      tweetInteractions: deletedTweets.count,
+      youtubeInteractions: deletedYouTube.count,
+      redditInteractions: deletedReddit.count,
+    };
+
+    console.log("Cleanup completed:", summary);
 
     return NextResponse.json({
       success: true,
-      message: `Cleaned up data older than ${CLEANUP_OLDER_THAN_DAYS} days`,
+      deleted: summary,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

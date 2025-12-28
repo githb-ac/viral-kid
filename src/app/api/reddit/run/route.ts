@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 const REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
 const REDDIT_API_BASE = "https://oauth.reddit.com";
@@ -178,7 +179,7 @@ async function generateReplyWithLLM(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://viral-kid.app",
+        "HTTP-Referer": process.env.NEXTAUTH_URL || "https://viral-kid.app",
         "X-Title": "Viral Kid",
       },
       body: JSON.stringify({
@@ -225,15 +226,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get account with all related data
-    const account = await db.account.findUnique({
-      where: { id: accountId },
-      include: {
-        redditCredentials: true,
-        redditConfig: true,
-        openRouterCredentials: true,
-      },
-    });
+    // Check for cron secret (internal calls) or user session
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCronCall =
+      cronSecret &&
+      cronSecret === process.env.CRON_SECRET &&
+      process.env.CRON_SECRET;
+
+    let account;
+    if (isCronCall) {
+      // Cron job call - just get the account directly
+      account = await db.account.findUnique({
+        where: { id: accountId },
+        include: {
+          redditCredentials: true,
+          redditConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    } else {
+      // User call - verify session and ownership
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      account = await db.account.findFirst({
+        where: { id: accountId, userId: session.user.id },
+        include: {
+          redditCredentials: true,
+          redditConfig: true,
+          openRouterCredentials: true,
+        },
+      });
+    }
 
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -425,47 +450,57 @@ export async function POST(request: Request) {
     }
 
     // Store interaction
-    await db.redditInteraction.upsert({
-      where: {
-        accountId_postId: {
+    try {
+      await db.redditInteraction.upsert({
+        where: {
+          accountId_postId: {
+            accountId,
+            postId: targetPost.id,
+          },
+        },
+        create: {
           accountId,
           postId: targetPost.id,
+          subreddit: targetPost.subreddit,
+          postTitle: targetPost.title,
+          postAuthor: targetPost.author,
+          postUrl: `https://reddit.com${targetPost.permalink}`,
+          upvotes: targetPost.ups,
+          commentCount: targetPost.num_comments,
+          ourComment: generatedReply,
+          ourCommentId: commentId,
+          repliedAt: new Date(),
         },
-      },
-      create: {
-        accountId,
-        postId: targetPost.id,
-        subreddit: targetPost.subreddit,
-        postTitle: targetPost.title,
-        postAuthor: targetPost.author,
-        postUrl: `https://reddit.com${targetPost.permalink}`,
-        upvotes: targetPost.ups,
-        commentCount: targetPost.num_comments,
-        ourComment: generatedReply,
-        ourCommentId: commentId,
-        repliedAt: new Date(),
-      },
-      update: {
-        ourComment: generatedReply,
-        ourCommentId: commentId,
-        repliedAt: new Date(),
-      },
-    });
-
-    // Cleanup old interactions (keep last 100)
-    const oldInteractions = await db.redditInteraction.findMany({
-      where: { accountId },
-      orderBy: { createdAt: "desc" },
-      skip: 100,
-      select: { id: true },
-    });
-
-    if (oldInteractions.length > 0) {
-      await db.redditInteraction.deleteMany({
-        where: {
-          id: { in: oldInteractions.map((i) => i.id) },
+        update: {
+          ourComment: generatedReply,
+          ourCommentId: commentId,
+          repliedAt: new Date(),
         },
       });
+
+      // Cleanup old interactions (keep last 100)
+      const oldInteractions = await db.redditInteraction.findMany({
+        where: { accountId },
+        orderBy: { createdAt: "desc" },
+        skip: 100,
+        select: { id: true },
+      });
+
+      if (oldInteractions.length > 0) {
+        await db.redditInteraction.deleteMany({
+          where: {
+            id: { in: oldInteractions.map((i) => i.id) },
+          },
+        });
+      }
+    } catch (dbError) {
+      console.error("Failed to store interaction:", dbError);
+      // Comment was posted successfully, just log the DB error
+      await createLog(
+        accountId,
+        "warning",
+        "Comment posted but failed to record in database"
+      );
     }
 
     return NextResponse.json({
