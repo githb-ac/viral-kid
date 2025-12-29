@@ -338,7 +338,7 @@ export function InstagramAccountModal({
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-4xl rounded-2xl border"
+            className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto md:max-w-4xl rounded-2xl border"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.99) 100%)",
@@ -462,7 +462,7 @@ export function InstagramAccountModal({
                 </div>
 
                 {/* Two Column Layout */}
-                <div className="mb-6 flex gap-6">
+                <div className="mb-6 flex flex-col gap-6 md:flex-row">
                   {/* Left Column - Meta App Credentials */}
                   <div className="flex-1">
                     <h3 className="mb-4 text-sm font-semibold tracking-wide text-white/90">
@@ -539,7 +539,7 @@ export function InstagramAccountModal({
 
                   {/* Divider */}
                   <div
-                    className="w-px self-stretch"
+                    className="hidden w-px self-stretch md:block"
                     style={{ background: "rgba(255,255,255,0.1)" }}
                   />
 

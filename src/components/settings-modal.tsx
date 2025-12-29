@@ -208,7 +208,7 @@ export function SettingsModal({
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-md rounded-2xl border"
+            className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.99) 100%)",

@@ -22,6 +22,7 @@ import {
   Check,
   X,
   ChevronDown,
+  MoreVertical,
 } from "lucide-react";
 import { SettingsModal } from "./settings-modal";
 import { AccountModal } from "./account-modal";
@@ -536,7 +537,407 @@ function ActionButton({
   );
 }
 
-function Logo() {
+type Platform = "twitter" | "youtube" | "instagram" | "reddit";
+
+const platformConfig: Record<
+  Platform,
+  { icon: React.ReactNode; label: string; color: string; activeColor: string }
+> = {
+  twitter: {
+    icon: <Twitter className="h-4 w-4" />,
+    label: "Twitter",
+    color: "text-sky-400/50",
+    activeColor: "text-sky-400",
+  },
+  youtube: {
+    icon: <Youtube className="h-4 w-4" />,
+    label: "YouTube",
+    color: "text-red-500/50",
+    activeColor: "text-red-500",
+  },
+  instagram: {
+    icon: <Instagram className="h-4 w-4" />,
+    label: "Instagram",
+    color: "text-pink-500/50",
+    activeColor: "text-pink-500",
+  },
+  reddit: {
+    icon: <RedditIcon className="h-4 w-4" />,
+    label: "Reddit",
+    color: "text-orange-500/50",
+    activeColor: "text-orange-500",
+  },
+};
+
+function MobileTabBar({
+  selectedPlatform,
+  onSelectPlatform,
+}: {
+  selectedPlatform: Platform;
+  onSelectPlatform: (platform: Platform) => void;
+}) {
+  const platforms: Platform[] = ["twitter", "youtube", "instagram", "reddit"];
+
+  return (
+    <div className="fixed left-0 right-0 top-10 z-40 px-4 py-2 md:hidden">
+      <div className="mx-auto grid max-w-md grid-cols-2 gap-2">
+        {platforms.map((platform) => {
+          const config = platformConfig[platform];
+          const isSelected = selectedPlatform === platform;
+          return (
+            <motion.button
+              key={platform}
+              onClick={() => onSelectPlatform(platform)}
+              className={`rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                isSelected
+                  ? "bg-white/10 text-white/90"
+                  : "bg-white/5 text-white/50"
+              }`}
+              whileHover={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {config.label}
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface MobilePlatformCardProps {
+  account: Account;
+  onSettingsClick: () => void;
+  onAccountClick: () => void;
+  onLogsClick: () => void;
+  onDatabaseClick: () => void;
+  onDeleteClick: () => void;
+  onToggleAutomation: () => void;
+  onTestPipeline: () => void;
+  canDelete: boolean;
+  isRunning: boolean;
+  isToggling: boolean;
+}
+
+function MobilePlatformCard({
+  account,
+  onSettingsClick,
+  onAccountClick,
+  onLogsClick,
+  onDatabaseClick,
+  onDeleteClick,
+  onToggleAutomation,
+  onTestPipeline,
+  canDelete,
+  isRunning,
+  isToggling,
+}: MobilePlatformCardProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSetupExpanded, setIsSetupExpanded] = useState(false);
+
+  const config = platformConfig[account.platform];
+  const label = account.displayName || config.label;
+
+  // Get setup items based on platform
+  const getSetupItems = () => {
+    const items = [
+      {
+        label:
+          account.platform === "twitter"
+            ? "Twitter"
+            : account.platform === "youtube"
+              ? "YouTube"
+              : account.platform === "instagram"
+                ? "Instagram"
+                : "Reddit",
+        done: account.setup.oauth,
+      },
+    ];
+
+    if (account.platform === "twitter") {
+      items.push(
+        { label: "RapidAPI", done: account.setup.apiKey },
+        { label: "Search Term", done: account.setup.searchTerm }
+      );
+    }
+
+    if (account.platform === "reddit") {
+      items.push({ label: "Keywords", done: account.setup.searchTerm });
+    }
+
+    items.push(
+      { label: "OpenRouter", done: account.setup.openRouter },
+      { label: "LLM Model", done: account.setup.llmModel }
+    );
+
+    return items;
+  };
+
+  const setupItems = getSetupItems();
+  const completedCount = setupItems.filter((item) => item.done).length;
+  const allComplete = completedCount === setupItems.length;
+
+  const menuItems = [
+    {
+      icon: account.isAutomationEnabled ? (
+        <Square className="h-3.5 w-3.5" />
+      ) : (
+        <Play className="h-3.5 w-3.5" />
+      ),
+      label: account.isAutomationEnabled ? "Stop" : "Start",
+      onClick: onToggleAutomation,
+      disabled: isToggling || !account.isReady,
+    },
+    {
+      icon: <FlaskConical className="h-3.5 w-3.5" />,
+      label: "Test",
+      onClick: onTestPipeline,
+      disabled: isRunning || !account.isReady,
+    },
+    {
+      icon: <Database className="h-3.5 w-3.5" />,
+      label: "Database",
+      onClick: onDatabaseClick,
+    },
+    {
+      icon: <FileText className="h-3.5 w-3.5" />,
+      label: "Logs",
+      onClick: onLogsClick,
+    },
+    {
+      icon: <Settings className="h-3.5 w-3.5" />,
+      label: "Settings",
+      onClick: onSettingsClick,
+    },
+    {
+      icon: <User className="h-3.5 w-3.5" />,
+      label: "Account",
+      onClick: onAccountClick,
+    },
+    ...(canDelete
+      ? [
+          {
+            icon: <Trash2 className="h-3.5 w-3.5" />,
+            label: "Delete",
+            onClick: onDeleteClick,
+            danger: true,
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className="relative rounded-xl border border-white/10 bg-white/5">
+      {/* Main row */}
+      <div className="flex items-center justify-between px-3 py-2.5">
+        {/* Left: Icon + Label */}
+        <div className="flex items-center gap-2">
+          <div className={config.activeColor}>{config.icon}</div>
+          <span className="text-sm font-medium text-white/80">{label}</span>
+          {account.isConnected && (
+            <span className="rounded-full bg-green-500/20 px-1.5 py-0.5 text-[10px] text-green-400">
+              Connected
+            </span>
+          )}
+        </div>
+
+        {/* Right: Status + Menu */}
+        <div className="flex items-center gap-2">
+          {/* Status indicator */}
+          {(isToggling || isRunning) && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
+          )}
+          {!isToggling && !isRunning && account.isAutomationEnabled && (
+            <div
+              className="h-2 w-2 rounded-full bg-green-500"
+              title="Automation running"
+            />
+          )}
+          {/* Setup status button */}
+          <button
+            onClick={() => setIsSetupExpanded(!isSetupExpanded)}
+            className={`flex items-center gap-1 text-[10px] ${
+              allComplete ? "text-green-400" : "text-amber-400"
+            }`}
+          >
+            <ChevronDown
+              className={`h-3 w-3 transition-transform ${isSetupExpanded ? "" : "-rotate-90"}`}
+            />
+            <span>
+              {completedCount}/{setupItems.length}
+            </span>
+          </button>
+
+          {/* Hamburger menu */}
+          <div className="relative">
+            <motion.button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="rounded-lg p-1.5 text-white/50"
+              whileHover={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </motion.button>
+
+            <AnimatePresence>
+              {isMenuOpen && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    className="fixed inset-0 z-40"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                  {/* Menu */}
+                  <motion.div
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-lg border border-white/10 bg-zinc-900 py-1 shadow-xl"
+                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {menuItems.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          if (!item.disabled) {
+                            item.onClick();
+                            setIsMenuOpen(false);
+                          }
+                        }}
+                        disabled={item.disabled}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                          item.disabled
+                            ? "cursor-not-allowed text-white/25"
+                            : item.danger
+                              ? "text-red-400 hover:bg-red-500/10"
+                              : "text-white/70 hover:bg-white/5"
+                        }`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      {/* Expandable setup checklist */}
+      <AnimatePresence initial={false}>
+        {isSetupExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden border-t border-white/5"
+          >
+            <div className="space-y-1 px-3 py-2">
+              {setupItems.map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <div
+                    className={`flex h-3.5 w-3.5 items-center justify-center rounded-full ${
+                      item.done
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-white/5 text-white/20"
+                    }`}
+                  >
+                    {item.done ? (
+                      <Check className="h-2 w-2" strokeWidth={3} />
+                    ) : (
+                      <X className="h-2 w-2" strokeWidth={3} />
+                    )}
+                  </div>
+                  <span
+                    className={`text-xs ${
+                      item.done ? "text-white/70" : "text-white/30"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MobileAddCard({
+  platform,
+  onClick,
+}: {
+  platform: Platform;
+  onClick: () => void;
+}) {
+  const config = platformConfig[platform];
+
+  return (
+    <motion.button
+      onClick={onClick}
+      className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5"
+      whileHover={{
+        backgroundColor: "rgba(255,255,255,0.05)",
+        borderColor: "rgba(255,255,255,0.2)",
+      }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className={config.color}>{config.icon}</div>
+      <Plus className="h-3.5 w-3.5 text-white/30" />
+    </motion.button>
+  );
+}
+
+function MobileNavbar() {
+  const { data: session } = useSession();
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/login" });
+  };
+
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-2.5 md:hidden"
+    >
+      <h1 className="logo-rainbow select-none font-[family-name:var(--font-logo)] text-[0.9rem] tracking-tight">
+        Viral Kid
+      </h1>
+      {session?.user && (
+        <div className="flex items-center gap-2">
+          <span className="max-w-[140px] truncate text-xs text-white/50">
+            {session.user.email}
+          </span>
+          <motion.button
+            onClick={handleLogout}
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              backgroundColor: "rgba(255,255,255,0.05)",
+            }}
+            whileHover={buttonHoverState}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </motion.button>
+        </div>
+      )}
+    </motion.nav>
+  );
+}
+
+function DesktopLogo() {
   const { data: session } = useSession();
 
   const handleLogout = async () => {
@@ -548,7 +949,7 @@ function Logo() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="mb-12 rounded-2xl border border-white/10 px-8 py-4 backdrop-blur-xl"
+      className="mb-12 hidden rounded-2xl border border-white/10 px-8 py-4 backdrop-blur-xl md:block"
       style={{
         background:
           "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 100%)",
@@ -599,6 +1000,7 @@ export function CardGrid() {
   const [togglingAccounts, setTogglingAccounts] = useState<Set<string>>(
     new Set()
   );
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>("twitter");
 
   const [settingsModal, setSettingsModal] = useState<{
     isOpen: boolean;
@@ -863,13 +1265,73 @@ export function CardGrid() {
   const firstInstagramId = instagramAccounts[0]?.id;
   const firstRedditId = redditAccounts[0]?.id;
 
+  // Get accounts for the selected platform (mobile)
+  const getAccountsForPlatform = (platform: Platform) => {
+    switch (platform) {
+      case "twitter":
+        return twitterAccounts;
+      case "youtube":
+        return youtubeAccounts;
+      case "instagram":
+        return instagramAccounts;
+      case "reddit":
+        return redditAccounts;
+    }
+  };
+
+  const getFirstIdForPlatform = (platform: Platform) => {
+    switch (platform) {
+      case "twitter":
+        return firstTwitterId;
+      case "youtube":
+        return firstYoutubeId;
+      case "instagram":
+        return firstInstagramId;
+      case "reddit":
+        return firstRedditId;
+    }
+  };
+
+  const selectedAccounts = getAccountsForPlatform(selectedPlatform);
+  const selectedFirstId = getFirstIdForPlatform(selectedPlatform);
+
   return (
     <>
-      <div className="flex min-h-screen flex-col items-center justify-center p-8">
-        <Logo />
+      <MobileNavbar />
+      <MobileTabBar
+        selectedPlatform={selectedPlatform}
+        onSelectPlatform={setSelectedPlatform}
+      />
+      <div className="flex min-h-screen flex-col items-center justify-center p-8 pt-32 md:pt-8">
+        <DesktopLogo />
 
-        {/* Three columns: Twitter, YouTube, Instagram */}
-        <div className="flex gap-6">
+        {/* Mobile: Cards */}
+        <div className="flex w-full max-w-md flex-col gap-2 md:hidden">
+          {!isLoading &&
+            selectedAccounts.map((account) => (
+              <MobilePlatformCard
+                key={account.id}
+                account={account}
+                onSettingsClick={() => openSettings(account)}
+                onAccountClick={() => openAccount(account)}
+                onLogsClick={() => openLogs(account)}
+                onDatabaseClick={() => openDatabase(account)}
+                onDeleteClick={() => openDeleteModal(account)}
+                onToggleAutomation={() => handleToggleAutomation(account)}
+                onTestPipeline={() => handleRunPipeline(account)}
+                canDelete={account.id !== selectedFirstId}
+                isRunning={runningAccounts.has(account.id)}
+                isToggling={togglingAccounts.has(account.id)}
+              />
+            ))}
+          <MobileAddCard
+            platform={selectedPlatform}
+            onClick={() => handleCreateAccount(selectedPlatform)}
+          />
+        </div>
+
+        {/* Desktop: Four columns */}
+        <div className="hidden gap-6 md:flex">
           {/* Twitter Column */}
           <div className="flex flex-col gap-4">
             <AnimatePresence mode="popLayout">

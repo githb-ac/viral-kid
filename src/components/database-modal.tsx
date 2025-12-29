@@ -219,7 +219,7 @@ export function DatabaseModal({
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 flex w-full max-w-4xl flex-col rounded-2xl border"
+            className="relative z-10 flex w-full max-w-md flex-col rounded-2xl border md:max-w-4xl"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.99) 100%)",

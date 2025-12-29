@@ -336,7 +336,7 @@ export function AccountModal({
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-5xl rounded-2xl border"
+            className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto md:max-w-5xl rounded-2xl border"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.99) 100%)",
@@ -442,8 +442,8 @@ export function AccountModal({
                   )}
                 </AnimatePresence>
 
-                {/* Three Column Layout */}
-                <div className="mb-6 flex gap-6">
+                {/* Three Column Layout - stacks on mobile */}
+                <div className="mb-6 flex flex-col gap-6 md:flex-row">
                   {/* Left Column - Twitter OAuth */}
                   <div className="flex-1">
                     <h3 className="mb-4 text-sm font-semibold tracking-wide text-white/90">
@@ -511,9 +511,9 @@ export function AccountModal({
                     </a>
                   </div>
 
-                  {/* Divider */}
+                  {/* Divider - hidden on mobile */}
                   <div
-                    className="w-px self-stretch"
+                    className="hidden w-px self-stretch md:block"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
                   />
 
@@ -804,9 +804,9 @@ export function AccountModal({
                     </motion.button>
                   </div>
 
-                  {/* Divider */}
+                  {/* Divider - hidden on mobile */}
                   <div
-                    className="w-px self-stretch"
+                    className="hidden w-px self-stretch md:block"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
                   />
 

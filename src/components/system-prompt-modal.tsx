@@ -414,7 +414,7 @@ export function SystemPromptModal({
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-5xl rounded-2xl border"
+            className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto md:max-w-5xl rounded-2xl border"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(30,30,35,0.98) 0%, rgba(20,20,25,0.99) 100%)",
@@ -469,7 +469,7 @@ export function SystemPromptModal({
 
               <div>
                 {/* Two Column Layout */}
-                <div className="flex gap-6">
+                <div className="flex flex-col gap-6 md:flex-row">
                   {/* Left Column - System Prompt */}
                   <div className="flex-1">
                     <h3 className="mb-2 text-sm font-semibold tracking-wide text-white/90">
@@ -547,7 +547,7 @@ You are a helpful social media assistant. Your role is to engage with users in a
 
                   {/* Divider */}
                   <div
-                    className="w-px self-stretch"
+                    className="hidden w-px self-stretch md:block"
                     style={{ background: "rgba(255,255,255,0.1)" }}
                   />
 
