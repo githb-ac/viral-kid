@@ -21,7 +21,6 @@ src/
 ├── components/             # React components
 │   └── ui/                 # Reusable UI elements
 ├── lib/                    # Utilities and helpers
-│   ├── jobs/               # BullMQ job queue system
 │   ├── twitter/            # Twitter API client
 │   └── youtube/            # YouTube API client
 ├── types/                  # TypeScript type definitions
@@ -82,7 +81,7 @@ Required in `.env`:
 
 Optional (platform-specific credentials stored per-account in database):
 
-- `REDIS_URL` - Redis connection string (default: `redis://localhost:6379`)
+- `REDIS_URL` - Redis connection string for rate limiting (default: `redis://localhost:6379`)
 - `CRON_SECRET` - Vercel cron authentication
 
 ## Dev Server
@@ -95,29 +94,6 @@ Uses Turbopack for fast refresh. Read terminal output for errors.
 
 ## Scheduled Jobs
 
-Two options for running scheduled tasks:
-
-### Option 1: BullMQ Worker (self-hosted)
-
-Requires Redis. Run the worker process alongside your app:
-
-```bash
-npm run worker        # Production
-npm run worker:dev    # Development (with watch mode)
-```
-
-Jobs are defined in `src/lib/jobs/`. Add new job types in:
-
-- `types.ts` - Job data interfaces
-- `processors.ts` - Job handler functions
-- `queues.ts` - Queue scheduling
-
-### Option 2: Vercel Cron (serverless)
-
-Configured in `vercel.json`. Cron endpoints in `src/app/api/cron/`:
-
-- `/api/cron/twitter-trends` - Hourly
-- `/api/cron/youtube-trends` - Every 2 hours
-- `/api/cron/cleanup` - Daily at 3 AM
+Configured in `vercel.json`. Cron endpoints in `src/app/api/cron/` trigger the platform pipelines on schedule.
 
 Set `CRON_SECRET` in Vercel environment variables for authentication.
