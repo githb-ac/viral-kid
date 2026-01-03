@@ -23,7 +23,9 @@ src/
 ├── lib/                    # Utilities and helpers
 │   ├── jobs/               # BullMQ job queue system
 │   ├── twitter/            # Twitter API client
-│   └── youtube/            # YouTube API client
+│   ├── youtube/            # YouTube API client
+│   ├── oauth.ts            # Shared OAuth utilities
+│   └── account-log.ts      # Account logging helper
 ├── types/                  # TypeScript type definitions
 └── generated/              # Auto-generated Prisma client (do not edit)
 
