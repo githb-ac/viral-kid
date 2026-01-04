@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-
-const REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
-const REDDIT_API_BASE = "https://oauth.reddit.com";
+import {
+  refreshTokenIfNeeded,
+  searchPosts,
+  postComment,
+  generateReply,
+  type RedditPost,
+} from "@/lib/reddit";
 
 async function createLog(
   accountId: string,
@@ -13,238 +17,6 @@ async function createLog(
   await db.log.create({
     data: { accountId, level, message },
   });
-}
-
-interface RedditPost {
-  id: string;
-  name: string; // fullname like "t3_xxxxx"
-  title: string;
-  selftext: string; // post body text
-  author: string;
-  subreddit: string;
-  url: string;
-  permalink: string;
-  ups: number;
-  num_comments: number;
-  created_utc: number;
-}
-
-async function refreshTokenIfNeeded(
-  accountId: string,
-  credentials: {
-    clientId: string;
-    clientSecret: string;
-    accessToken: string;
-    refreshToken: string | null;
-    tokenExpiresAt: Date | null;
-  }
-): Promise<string> {
-  // Check if token expires within 5 minutes
-  const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
-
-  if (
-    credentials.tokenExpiresAt &&
-    credentials.tokenExpiresAt > fiveMinutesFromNow
-  ) {
-    return credentials.accessToken;
-  }
-
-  if (!credentials.refreshToken) {
-    throw new Error("No refresh token available");
-  }
-
-  const basicAuth = Buffer.from(
-    `${credentials.clientId}:${credentials.clientSecret}`
-  ).toString("base64");
-
-  const response = await fetch(REDDIT_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basicAuth}`,
-      "User-Agent": "ViralKid/1.0.0",
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: credentials.refreshToken,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to refresh token");
-  }
-
-  const data = await response.json();
-  const tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
-
-  // Update tokens in database
-  await db.redditCredentials.update({
-    where: { accountId },
-    data: {
-      accessToken: data.access_token,
-      tokenExpiresAt,
-    },
-  });
-
-  return data.access_token;
-}
-
-async function searchPosts(
-  accessToken: string,
-  keywords: string,
-  timeRange: string,
-  limit: number = 25
-): Promise<RedditPost[]> {
-  // Parse comma-separated keywords and join with OR for broader search
-  const keywordList = keywords
-    .split(",")
-    .map((k) => k.trim())
-    .filter((k) => k.length > 0);
-
-  if (keywordList.length === 0) {
-    return [];
-  }
-
-  // Join keywords with OR for Reddit search
-  const searchQuery = keywordList.join(" OR ");
-
-  const searchParams = new URLSearchParams({
-    q: searchQuery,
-    sort: "relevance",
-    t: timeRange, // hour, day, week, month
-    limit: limit.toString(),
-    type: "link", // Only posts, not comments
-  });
-
-  const response = await fetch(
-    `${REDDIT_API_BASE}/search?${searchParams.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "ViralKid/1.0.0",
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to search posts: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.data.children.map((child: { data: RedditPost }) => child.data);
-}
-
-async function postComment(
-  accessToken: string,
-  postFullname: string,
-  text: string
-): Promise<string> {
-  const response = await fetch(`${REDDIT_API_BASE}/api/comment`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "ViralKid/1.0.0",
-    },
-    body: new URLSearchParams({
-      thing_id: postFullname,
-      text: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to post comment: ${errorText}`);
-  }
-
-  const data = await response.json();
-  // Reddit returns the comment in a nested structure
-  const commentData = data?.json?.data?.things?.[0]?.data;
-  return commentData?.name || "unknown";
-}
-
-async function generateReplyWithLLM(
-  apiKey: string,
-  model: string,
-  systemPrompt: string,
-  postTitle: string,
-  postBody: string,
-  postAuthor: string,
-  subreddit: string,
-  styleOptions: {
-    noHashtags: boolean;
-    noEmojis: boolean;
-    noCapitalization: boolean;
-    badGrammar: boolean;
-  }
-): Promise<string> {
-  // Build style instructions
-  const styleInstructions: string[] = [];
-  if (styleOptions.noHashtags) styleInstructions.push("Do not use hashtags.");
-  if (styleOptions.noEmojis) styleInstructions.push("Do not use emojis.");
-  if (styleOptions.noCapitalization)
-    styleInstructions.push("Use all lowercase letters.");
-  if (styleOptions.badGrammar)
-    styleInstructions.push("Use casual grammar with minor typos.");
-
-  const fullSystemPrompt = [
-    systemPrompt ||
-      "You are a helpful Reddit user who provides thoughtful comments on posts.",
-    "Keep your reply concise and relevant (under 500 characters).",
-    "Be genuine and add value to the discussion.",
-    "Match the tone of the subreddit - some are casual, some are more serious.",
-    ...styleInstructions,
-  ].join(" ");
-
-  // Build post content - include body if available
-  let postContent = `Title: "${postTitle}"`;
-  if (postBody && postBody.trim().length > 0) {
-    // Truncate body to avoid token limits
-    const truncatedBody =
-      postBody.length > 500 ? postBody.slice(0, 500) + "..." : postBody;
-    postContent += `\n\nPost content:\n${truncatedBody}`;
-  }
-
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXTAUTH_URL || "https://viral-kid.app",
-        "X-Title": "Viral Kid",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          {
-            role: "user",
-            content: `Write a comment for this Reddit post in r/${subreddit} by u/${postAuthor}:\n\n${postContent}`,
-          },
-        ],
-        max_tokens: 150,
-        temperature: 0.8,
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenRouter error: ${error}`);
-  }
-
-  const data = await response.json();
-  const reply = data.choices?.[0]?.message?.content?.trim();
-
-  if (!reply) {
-    throw new Error(
-      `Empty response from LLM. Response: ${JSON.stringify(data)}`
-    );
-  }
-
-  return reply.slice(0, 500);
 }
 
 export async function POST(request: Request) {
@@ -337,13 +109,30 @@ export async function POST(request: Request) {
     // Refresh token if needed
     let accessToken: string;
     try {
-      accessToken = await refreshTokenIfNeeded(accountId, {
+      const tokenResult = await refreshTokenIfNeeded({
         clientId: redditCredentials.clientId,
         clientSecret: redditCredentials.clientSecret,
         accessToken: redditCredentials.accessToken,
         refreshToken: redditCredentials.refreshToken,
         tokenExpiresAt: redditCredentials.tokenExpiresAt,
       });
+
+      if (!tokenResult) {
+        throw new Error("No refresh token available");
+      }
+
+      accessToken = tokenResult.accessToken;
+
+      // Update token in database if refreshed
+      if (tokenResult.expiresAt !== redditCredentials.tokenExpiresAt) {
+        await db.redditCredentials.update({
+          where: { accountId },
+          data: {
+            accessToken: tokenResult.accessToken,
+            tokenExpiresAt: tokenResult.expiresAt,
+          },
+        });
+      }
     } catch (error) {
       await createLog(
         accountId,
@@ -362,7 +151,7 @@ export async function POST(request: Request) {
 
     let posts: RedditPost[];
     try {
-      posts = await searchPosts(accessToken, keywords, timeRange);
+      posts = await searchPosts(accessToken, { keywords, timeRange });
       await createLog(
         accountId,
         "info",
@@ -429,21 +218,21 @@ export async function POST(request: Request) {
     // Generate reply using LLM
     let generatedReply: string;
     try {
-      generatedReply = await generateReplyWithLLM(
-        openRouterCredentials.apiKey,
-        openRouterCredentials.selectedModel,
-        openRouterCredentials.systemPrompt || "",
-        targetPost.title,
-        targetPost.selftext || "",
-        targetPost.author,
-        targetPost.subreddit,
-        {
+      generatedReply = await generateReply({
+        apiKey: openRouterCredentials.apiKey,
+        model: openRouterCredentials.selectedModel,
+        systemPrompt: openRouterCredentials.systemPrompt || "",
+        postTitle: targetPost.title,
+        postBody: targetPost.selftext || "",
+        postAuthor: targetPost.author,
+        subreddit: targetPost.subreddit,
+        styleOptions: {
           noHashtags: openRouterCredentials.noHashtags,
           noEmojis: openRouterCredentials.noEmojis,
           noCapitalization: openRouterCredentials.noCapitalization,
           badGrammar: openRouterCredentials.badGrammar,
-        }
-      );
+        },
+      });
       await createLog(
         accountId,
         "info",

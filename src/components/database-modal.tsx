@@ -11,6 +11,8 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  ArrowUp,
+  ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { IconButton } from "@/components/ui/icon-button";
@@ -24,6 +26,21 @@ interface TweetInteraction {
   hearts: number;
   replies: number;
   ourReply: string | null;
+  repliedAt: string | null;
+  createdAt: string;
+}
+
+interface RedditInteraction {
+  id: string;
+  postId: string;
+  subreddit: string;
+  postTitle: string;
+  postAuthor: string;
+  postUrl: string;
+  upvotes: number;
+  commentCount: number;
+  ourComment: string | null;
+  ourCommentId: string | null;
   repliedAt: string | null;
   createdAt: string;
 }
@@ -151,6 +168,37 @@ function TweetCell({ text, username }: { text: string; username: string }) {
   );
 }
 
+function RedditPostCell({
+  title,
+  subreddit,
+  author,
+  url,
+}: {
+  title: string;
+  subreddit: string;
+  author: string;
+  url: string;
+}) {
+  return (
+    <td className="relative max-w-xs px-3 py-3">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="text-xs text-orange-400/80">r/{subreddit}</span>
+        <span className="text-xs text-white/30">by u/{author}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-white/40 transition-colors hover:text-white/70"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+      <div className="line-clamp-2 text-sm text-white/80">{title}</div>
+    </td>
+  );
+}
+
 export function DatabaseModal({
   isOpen,
   onClose,
@@ -159,39 +207,62 @@ export function DatabaseModal({
 }: DatabaseModalProps) {
   // Data states
   const [tweets, setTweets] = useState<TweetInteraction[]>([]);
+  const [redditInteractions, setRedditInteractions] = useState<
+    RedditInteraction[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
-  const fetchTweets = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!accountId) return;
 
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/tweets?accountId=${accountId}`);
-      if (!res.ok) throw new Error("Failed to fetch tweets");
-      const data = await res.json();
-      setTweets(data);
+      if (platform === "reddit") {
+        const res = await fetch(
+          `/api/reddit/interactions?accountId=${accountId}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch Reddit interactions");
+        const data = await res.json();
+        setRedditInteractions(data);
+      } else {
+        const res = await fetch(`/api/tweets?accountId=${accountId}`);
+        if (!res.ok) throw new Error("Failed to fetch tweets");
+        const data = await res.json();
+        setTweets(data);
+      }
     } catch (error) {
-      console.error("Failed to fetch tweets:", error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, platform]);
 
   useEffect(() => {
     if (isOpen && accountId) {
-      fetchTweets();
+      fetchData();
     }
-  }, [isOpen, accountId, fetchTweets]);
+  }, [isOpen, accountId, fetchData]);
 
   const handleClearAll = async () => {
     setIsClearing(true);
     try {
-      const res = await fetch(`/api/tweets?accountId=${accountId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to clear tweets");
-      setTweets([]);
+      if (platform === "reddit") {
+        const res = await fetch(
+          `/api/reddit/interactions?accountId=${accountId}`,
+          {
+            method: "DELETE",
+          }
+        );
+        if (!res.ok) throw new Error("Failed to clear interactions");
+        setRedditInteractions([]);
+      } else {
+        const res = await fetch(`/api/tweets?accountId=${accountId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to clear tweets");
+        setTweets([]);
+      }
       toast.success("Data cleared");
     } catch {
       toast.error("Failed to clear data");
@@ -205,7 +276,13 @@ export function DatabaseModal({
       ? "Twitter"
       : platform === "youtube"
         ? "YouTube"
-        : "Instagram";
+        : platform === "reddit"
+          ? "Reddit"
+          : "Instagram";
+
+  const dataCount =
+    platform === "reddit" ? redditInteractions.length : tweets.length;
+  const hasData = dataCount > 0;
 
   return (
     <AnimatePresence>
@@ -239,19 +316,19 @@ export function DatabaseModal({
                 <h2 className="text-sm font-semibold tracking-wide text-white/90">
                   {platformTitle} Database
                 </h2>
-                {tweets.length > 0 && (
+                {hasData && (
                   <motion.span
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className="rounded-full px-2 py-0.5 text-xs font-medium text-white/70"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
                   >
-                    {tweets.length}
+                    {dataCount}
                   </motion.span>
                 )}
               </div>
               <div className="flex items-center gap-1">
-                {tweets.length > 0 && (
+                {hasData && (
                   <IconButton
                     icon={
                       isClearing ? (
@@ -279,7 +356,7 @@ export function DatabaseModal({
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-white/50" />
                 </div>
-              ) : tweets.length === 0 ? (
+              ) : !hasData ? (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -288,6 +365,60 @@ export function DatabaseModal({
                   <Database className="mb-2 h-8 w-8 text-white/30" />
                   <p className="text-sm text-white/50">No data yet</p>
                 </motion.div>
+              ) : platform === "reddit" ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-white/50">
+                        <th className="px-3 py-3 font-medium">Post</th>
+                        <th className="w-20 px-3 py-3 text-center font-medium">
+                          <ArrowUp className="mx-auto h-4 w-4" />
+                        </th>
+                        <th className="w-20 px-3 py-3 text-center font-medium">
+                          <MessageCircle className="mx-auto h-4 w-4" />
+                        </th>
+                        <th className="w-28 px-3 py-3 font-medium">Time</th>
+                        <th className="px-3 py-3 font-medium">Our Comment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {redditInteractions.map((interaction, index) => (
+                        <motion.tr
+                          key={interaction.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.02 }}
+                          className="border-b border-white/5 transition-colors hover:bg-white/5"
+                        >
+                          <RedditPostCell
+                            title={interaction.postTitle}
+                            subreddit={interaction.subreddit}
+                            author={interaction.postAuthor}
+                            url={interaction.postUrl}
+                          />
+                          <td className="px-3 py-3 text-center text-sm text-white/60">
+                            {formatNumber(interaction.upvotes)}
+                          </td>
+                          <td className="px-3 py-3 text-center text-sm text-white/60">
+                            {formatNumber(interaction.commentCount)}
+                          </td>
+                          <td className="px-3 py-3 text-xs text-white/50">
+                            {formatTimestamp(interaction.createdAt)}
+                          </td>
+                          <td className="relative max-w-xs px-3 py-3">
+                            {interaction.ourComment ? (
+                              <TruncatedText text={interaction.ourComment} />
+                            ) : (
+                              <span className="text-xs text-white/30">
+                                No comment
+                              </span>
+                            )}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
