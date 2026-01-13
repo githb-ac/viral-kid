@@ -77,7 +77,7 @@ export const tweetInteractionSchema = z.object({
 // Helper to validate and parse request body
 export async function parseBody<T>(
   request: Request,
-  schema: z.ZodSchema<T>
+  schema: z.ZodType<T>
 ): Promise<{ success: true; data: T } | { success: false; error: string }> {
   try {
     const body = await request.json();
@@ -97,7 +97,7 @@ export async function parseBody<T>(
 // Helper to validate query parameters
 export function parseQueryParam<T>(
   value: string | null,
-  schema: z.ZodSchema<T>
+  schema: z.ZodType<T>
 ): { success: true; data: T } | { success: false; error: string } {
   if (value === null) {
     return { success: false, error: "Parameter is required" };

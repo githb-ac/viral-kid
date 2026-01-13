@@ -1,7 +1,21 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { TwitterApi } from "twitter-api-v2";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
+
+// Timing-safe state comparison to prevent timing attacks
+function isValidState(
+  state: string | null,
+  storedState: string | undefined
+): boolean {
+  if (!state || !storedState) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(state), Buffer.from(storedState));
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -32,7 +46,7 @@ export async function GET(request: Request) {
       );
     }
 
-    if (state !== storedState) {
+    if (!isValidState(state, storedState)) {
       return NextResponse.redirect(
         new URL("/?error=state_mismatch", url.origin)
       );

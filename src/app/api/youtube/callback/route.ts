@@ -1,6 +1,20 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
+
+// Timing-safe state comparison to prevent timing attacks
+function isValidState(
+  state: string | null,
+  storedState: string | undefined
+): boolean {
+  if (!state || !storedState) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(state), Buffer.from(storedState));
+  } catch {
+    return false;
+  }
+}
 
 // Google OAuth 2.0 token endpoint
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -31,7 +45,7 @@ export async function GET(request: Request) {
     const storedState = cookieStore.get("youtube_oauth_state")?.value;
     const accountId = cookieStore.get("youtube_account_id")?.value;
 
-    if (state !== storedState) {
+    if (!isValidState(state, storedState)) {
       return NextResponse.redirect(
         new URL("/?error=youtube_state_mismatch", url.origin)
       );

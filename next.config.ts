@@ -30,11 +30,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-
-  // Optimize package imports for better tree-shaking
-  experimental: {
-    optimizePackageImports: ["lucide-react", "framer-motion"],
-  },
 };
 
 export default nextConfig;
