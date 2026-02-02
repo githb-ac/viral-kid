@@ -389,11 +389,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message }, { status: 500 });
     }
 
+    // Client-side filter as fallback (API filter may be unreliable)
+    tweets = tweets.filter((t) => t.hearts >= minimumLikesCount);
+
     if (tweets.length === 0) {
       await createLog(
         accountId,
         "warning",
-        "No tweets found matching criteria"
+        `No tweets found with at least ${minimumLikesCount} likes`
       );
       return NextResponse.json({
         success: true,
@@ -402,7 +405,11 @@ export async function POST(request: Request) {
       });
     }
 
-    await createLog(accountId, "info", `Found ${tweets.length} tweets`);
+    await createLog(
+      accountId,
+      "info",
+      `Found ${tweets.length} tweets with ${minimumLikesCount}+ likes`
+    );
 
     // Step 3: Store tweets temporarily and filter out already replied
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
