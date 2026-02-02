@@ -6,7 +6,8 @@ type TokenStatus = "healthy" | "expiring_soon" | "expired" | "not_connected";
 
 function getTokenStatus(
   accessToken: string | null,
-  tokenExpiresAt: Date | null
+  tokenExpiresAt: Date | null,
+  refreshToken?: string | null
 ): { status: TokenStatus; expiresAt: Date | null } {
   if (!accessToken) {
     return { status: "not_connected", expiresAt: null };
@@ -21,10 +22,20 @@ function getTokenStatus(
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   if (tokenExpiresAt < now) {
+    // Token expired, but if we have a refresh token it can be auto-refreshed
+    // Only show "expired" if there's no refresh token (truly expired)
+    if (refreshToken) {
+      // Has refresh token - will auto-refresh on next use, show as healthy
+      return { status: "healthy", expiresAt: null };
+    }
     return { status: "expired", expiresAt: tokenExpiresAt };
   }
 
   if (tokenExpiresAt < sevenDaysFromNow) {
+    // For short-lived tokens (Twitter/YouTube ~2hrs), if we have refresh token, show healthy
+    if (refreshToken) {
+      return { status: "healthy", expiresAt: null };
+    }
     return { status: "expiring_soon", expiresAt: tokenExpiresAt };
   }
 
@@ -39,6 +50,7 @@ interface AccountWithCredentials {
   twitterCredentials: {
     username: string | null;
     accessToken: string | null;
+    refreshToken: string | null;
     tokenExpiresAt: Date | null;
     rapidApiKey: string | null;
   } | null;
@@ -49,6 +61,7 @@ interface AccountWithCredentials {
   youtubeCredentials: {
     channelTitle: string | null;
     accessToken: string | null;
+    refreshToken: string | null;
     tokenExpiresAt: Date | null;
   } | null;
   youtubeConfig: {
@@ -95,6 +108,7 @@ export async function GET() {
           select: {
             username: true,
             accessToken: true,
+            refreshToken: true,
             tokenExpiresAt: true,
             rapidApiKey: true,
           },
@@ -109,6 +123,7 @@ export async function GET() {
           select: {
             channelTitle: true,
             accessToken: true,
+            refreshToken: true,
             tokenExpiresAt: true,
           },
         },
@@ -169,7 +184,8 @@ export async function GET() {
           isAutomationEnabled = account.twitterConfig?.enabled ?? false;
           tokenHealth = getTokenStatus(
             account.twitterCredentials?.accessToken ?? null,
-            account.twitterCredentials?.tokenExpiresAt ?? null
+            account.twitterCredentials?.tokenExpiresAt ?? null,
+            account.twitterCredentials?.refreshToken ?? null
           );
         } else if (account.platform === "youtube") {
           isConnected = !!account.youtubeCredentials?.accessToken;
@@ -179,7 +195,8 @@ export async function GET() {
           isAutomationEnabled = account.youtubeConfig?.enabled ?? false;
           tokenHealth = getTokenStatus(
             account.youtubeCredentials?.accessToken ?? null,
-            account.youtubeCredentials?.tokenExpiresAt ?? null
+            account.youtubeCredentials?.tokenExpiresAt ?? null,
+            account.youtubeCredentials?.refreshToken ?? null
           );
         } else if (account.platform === "instagram") {
           isConnected = !!account.instagramCredentials?.accessToken;
