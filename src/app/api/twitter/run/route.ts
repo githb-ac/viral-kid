@@ -206,6 +206,7 @@ async function generateReplyWithLLM(
     "Keep your reply under 280 characters.",
     "Be conversational and engaging.",
     ...styleInstructions,
+    "IMPORTANT: Output ONLY the tweet reply text itself. Do not include any reasoning, analysis, thinking, explanations, or meta-commentary. Just the raw reply text.",
   ].join(" ");
 
   const response = await fetch(
@@ -240,12 +241,58 @@ async function generateReplyWithLLM(
 
   const data = await response.json();
 
-  const reply = data.choices?.[0]?.message?.content?.trim();
+  const message = data.choices?.[0]?.message;
+  let reply = message?.content?.trim();
+
+  // If model has separate reasoning field, the content should be clean
+  // If reasoning exists but content is empty/short, something's wrong
+  const hasReasoningField = !!message?.reasoning;
 
   if (!reply) {
     throw new Error(
       `Empty response from LLM. Response: ${JSON.stringify(data)}`
     );
+  }
+
+  // Only clean up if no separate reasoning field (model dumped thinking into content)
+  if (!hasReasoningField) {
+    // Clean up common thinking/reasoning patterns that some models output
+    const thinkingPatterns = [
+      /^(The user wants|I need to|Let me|Here's my|My reply|I'll write|I should|This tweet|The tweet).*?[.!]\s*/i,
+      /^(Key details|Details|Context|Analysis|Reasoning|Thinking|Response):.*?\n+/i,
+      /^[-•*]\s+.*?\n/gm, // Bullet points
+      /^\d+\.\s+.*?\n/gm, // Numbered lists
+    ];
+
+    for (const pattern of thinkingPatterns) {
+      reply = reply.replace(pattern, "").trim();
+    }
+
+    // If reply still looks like reasoning, try to extract quoted text or last line
+    if (
+      reply.includes("Constraints:") ||
+      reply.includes("Rating:") ||
+      reply.includes("The user wants") ||
+      reply.includes("Key details:")
+    ) {
+      // Look for quoted text which is likely the actual reply
+      const quotedMatch = reply.match(/"([^"]+)"/);
+      if (quotedMatch && quotedMatch[1].length > 10) {
+        reply = quotedMatch[1];
+      } else {
+        // Try to get the last non-empty line as it's often the actual reply
+        const lines = reply
+          .split("\n")
+          .filter((l: string) => l.trim().length > 0);
+        const lastLine = lines[lines.length - 1]?.trim();
+        if (lastLine && lastLine.length > 10 && lastLine.length < 300) {
+          reply = lastLine;
+        }
+      }
+    }
+
+    // Remove surrounding quotes if present
+    reply = reply.replace(/^["']|["']$/g, "").trim();
   }
 
   // Ensure reply is under 280 chars
