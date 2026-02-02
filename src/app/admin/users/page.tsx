@@ -130,7 +130,7 @@ export default function AdminUsersPage() {
     return (
       <>
         <Preloader isLoaded={isShaderLoaded} />
-        <main className="relative min-h-screen overflow-hidden">
+        <main className="relative min-h-screen">
           <ShaderBackground onLoad={handleShaderLoad} />
           <div className="relative z-10 flex min-h-screen items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-white/50" />
@@ -143,9 +143,9 @@ export default function AdminUsersPage() {
   return (
     <>
       <Preloader isLoaded={isShaderLoaded} />
-      <main className="relative min-h-screen overflow-hidden">
+      <main className="relative min-h-screen">
         <ShaderBackground onLoad={handleShaderLoad} />
-        <div className="relative z-10 flex min-h-screen flex-col items-center p-8 pt-16">
+        <div className="relative z-10 flex min-h-screen flex-col items-center p-8 pt-16 pb-16">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -205,7 +205,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Users List */}
-            <div className="max-h-[500px] overflow-y-auto p-4">
+            <div className="max-h-[60vh] overflow-y-auto p-4">
               {users.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
                   <Users className="h-8 w-8 text-white/20" />
