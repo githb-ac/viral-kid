@@ -6,7 +6,8 @@ type TokenStatus = "healthy" | "expiring_soon" | "expired" | "not_connected";
 
 function getTokenStatus(
   accessToken: string | null,
-  tokenExpiresAt: Date | null
+  tokenExpiresAt: Date | null,
+  refreshToken: string | null
 ): TokenStatus {
   if (!accessToken) return "not_connected";
   if (!tokenExpiresAt) return "healthy";
@@ -14,8 +15,16 @@ function getTokenStatus(
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  if (tokenExpiresAt < now) return "expired";
-  if (tokenExpiresAt < sevenDaysFromNow) return "expiring_soon";
+  if (tokenExpiresAt < now) {
+    // Token expired, but if we have a refresh token it can be auto-refreshed
+    if (refreshToken) return "healthy";
+    return "expired";
+  }
+  if (tokenExpiresAt < sevenDaysFromNow) {
+    // For short-lived tokens, if we have refresh token, show healthy
+    if (refreshToken) return "healthy";
+    return "expiring_soon";
+  }
   return "healthy";
 }
 
@@ -57,7 +66,8 @@ export async function GET(request: Request) {
 
     const tokenStatus = getTokenStatus(
       credentials.accessToken,
-      credentials.tokenExpiresAt
+      credentials.tokenExpiresAt,
+      credentials.refreshToken
     );
 
     return NextResponse.json({
