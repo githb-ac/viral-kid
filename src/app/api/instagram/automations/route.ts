@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, getEffectiveUserId } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { validateTemplates, serializeTemplates } from "@/lib/instagram";
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   // Verify account belongs to user
   const account = await db.account.findFirst({
-    where: { id: accountId, userId: session.user.id },
+    where: { id: accountId, userId: getEffectiveUserId(session)! },
   });
 
   if (!account) {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   // Verify account belongs to user
   const account = await db.account.findFirst({
-    where: { id: accountId, userId: session.user.id },
+    where: { id: accountId, userId: getEffectiveUserId(session)! },
   });
 
   if (!account) {

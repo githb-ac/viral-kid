@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { auth, getEffectiveUserId } from "@/lib/auth";
 import {
   refreshTokenIfNeeded,
   fetchChannelVideos,
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       account = await db.account.findFirst({
-        where: { id: accountId, userId: session.user.id },
+        where: { id: accountId, userId: getEffectiveUserId(session)! },
         include: {
           youtubeCredentials: true,
           youtubeConfig: true,
