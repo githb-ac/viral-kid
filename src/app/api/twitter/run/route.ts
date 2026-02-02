@@ -125,9 +125,12 @@ async function fetchTweetsFromRapidAPI(
   searchTerm: string,
   minimumLikesCount: number
 ): Promise<ParsedTweet[]> {
-  const today = new Date().toISOString().split("T")[0];
+  // Use rolling 24-hour window instead of "today" (UTC date can be very short window)
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
   const filters = {
-    since: today,
+    since,
     minimumLikesCount,
     // Allow images but still remove videos via client-side filtering
     removePostsWithMedia: false,
